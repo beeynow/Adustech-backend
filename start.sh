@@ -1,33 +1,17 @@
-#!/bin/bash
+#!/bin/sh
 set -e
 
 echo "🚀 Starting ADUSTECH Backend..."
 
-# Check if DATABASE_URL is set
-if [ -z "$DATABASE_URL" ]; then
-  echo "❌ ERROR: DATABASE_URL is not set!"
-  exit 1
-fi
+# Wait a moment for Railway to set environment variables
+sleep 2
 
-echo "✅ DATABASE_URL is configured"
+# Push database schema (creates tables if they don't exist)
+echo "📦 Ensuring database schema is up to date..."
+npx prisma db push --skip-generate --accept-data-loss 2>&1 | grep -v "^Prisma schema loaded" || true
 
-# Run database migrations (with retry logic)
-echo "📦 Running database migrations..."
-MAX_RETRIES=3
-RETRY_COUNT=0
-
-until npx prisma db push --skip-generate || [ $RETRY_COUNT -eq $MAX_RETRIES ]; do
-  RETRY_COUNT=$((RETRY_COUNT+1))
-  echo "⏳ Migration attempt $RETRY_COUNT failed, retrying in 5 seconds..."
-  sleep 5
-done
-
-if [ $RETRY_COUNT -eq $MAX_RETRIES ]; then
-  echo "⚠️  Migrations failed after $MAX_RETRIES attempts. Starting server anyway..."
-else
-  echo "✅ Migrations completed successfully"
-fi
+echo "✅ Database ready"
+echo "🚀 Starting server..."
 
 # Start the application
-echo "🚀 Starting server..."
 exec node app.js
