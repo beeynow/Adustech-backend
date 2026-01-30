@@ -10,11 +10,12 @@
     "node": ">=18.x"
   },
   "scripts": {
-    "start": "node app.js",
+    "start": "bash start.sh",
+    "start:simple": "node app.js",
     "dev": "NODE_ENV=development node app.js",
-    "build": "prisma generate && prisma migrate deploy",
+    "build": "prisma generate",
     "postinstall": "prisma generate",
-    "railway:deploy": "prisma migrate deploy && node app.js",
+    "railway:deploy": "bash start.sh",
     "prisma:generate": "prisma generate",
     "prisma:push": "prisma db push",
     "prisma:migrate": "prisma migrate dev",
