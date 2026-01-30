@@ -1,0 +1,243 @@
+// Prisma Schema for ADUSTECH Backend
+// PostgreSQL Database
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// User Model
+model User {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Authentication
+  name     String
+  email    String   @unique
+  password String
+  otp      String?
+  otpExpiry DateTime?
+  isVerified Boolean @default(false)
+
+  // Profile Information
+  bio          String   @default("")
+  profileImage String   @default("")
+  level        String   @default("")
+  department   String   @default("")
+  faculty      String   @default("")
+  phone        String   @default("")
+  dateOfBirth  DateTime?
+  gender       String   @default("")
+  address      String   @default("")
+  country      String   @default("")
+
+  // Password Reset
+  resetPasswordToken   String?
+  resetPasswordExpires DateTime?
+
+  // Role
+  role String @default("user") // power, admin, d-admin, user
+
+  // Relations
+  posts           Post[]
+  comments        Comment[]
+  likedPosts      PostLike[]
+  repostedPosts   PostRepost[]
+  likedComments   CommentLike[]
+  createdChannels Channel[]      @relation("ChannelCreator")
+  channelMembers  ChannelMember[]
+  createdEvents   Event[]
+  createdTimetables Timetable[]
+
+  @@index([email])
+  @@index([role])
+}
+
+// Post Model
+model Post {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  userId   String
+  user     User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userName String
+
+  category     String @default("All")
+  text         String @default("")
+  imageBase64  String @default("") @db.Text // legacy support
+  imageUrl     String @default("")
+
+  // Relations
+  likes    PostLike[]
+  reposts  PostRepost[]
+  comments Comment[]
+
+  @@index([userId])
+  @@index([category])
+  @@index([createdAt])
+}
+
+// Comment Model
+model Comment {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  postId   String
+  post     Post   @relation(fields: [postId], references: [id], onDelete: Cascade)
+  userId   String
+  user     User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userName String
+  text     String
+
+  // Relations
+  likes CommentLike[]
+
+  @@index([postId])
+  @@index([userId])
+}
+
+// PostLike Model (Many-to-Many)
+model PostLike {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+
+  postId String
+  post   Post   @relation(fields: [postId], references: [id], onDelete: Cascade)
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([postId, userId])
+  @@index([postId])
+  @@index([userId])
+}
+
+// PostRepost Model (Many-to-Many)
+model PostRepost {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+
+  postId String
+  post   Post   @relation(fields: [postId], references: [id], onDelete: Cascade)
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([postId, userId])
+  @@index([postId])
+  @@index([userId])
+}
+
+// CommentLike Model (Many-to-Many)
+model CommentLike {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+
+  commentId String
+  comment   Comment @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([commentId, userId])
+  @@index([commentId])
+  @@index([userId])
+}
+
+// Channel Model
+model Channel {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  name        String
+  description String @default("")
+  visibility  String @default("public") // public, private
+
+  createdById String
+  createdBy   User   @relation("ChannelCreator", fields: [createdById], references: [id], onDelete: Cascade)
+
+  // Relations
+  members ChannelMember[]
+
+  @@index([name])
+  @@index([createdById])
+}
+
+// ChannelMember Model (Many-to-Many)
+model ChannelMember {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+
+  channelId String
+  channel   Channel @relation(fields: [channelId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([channelId, userId])
+  @@index([channelId])
+  @@index([userId])
+}
+
+// Event Model
+model Event {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  title       String
+  details     String   @default("") @db.Text
+  location    String   @default("")
+  startsAt    DateTime
+  imageUrl    String   @default("")
+  imageBase64 String   @default("") @db.Text
+  pdfUrl      String   @default("")
+  createdByName String @default("")
+  
+  // TTL handling (we'll handle expiration in application code)
+  expiresAt   DateTime // startsAt + 30 minutes
+
+  createdById String
+  createdBy   User   @relation(fields: [createdById], references: [id], onDelete: Cascade)
+
+  @@index([startsAt])
+  @@index([expiresAt])
+  @@index([createdById])
+}
+
+// Timetable Model
+model Timetable {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  title         String
+  details       String   @default("") @db.Text
+  effectiveDate DateTime
+  imageUrl      String   @default("")
+  pdfUrl        String   @default("")
+  createdByName String   @default("")
+  
+  // TTL handling (we'll handle expiration in application code)
+  expiresAt     DateTime // end of effectiveDate day
+
+  createdById   String
+  createdBy     User     @relation(fields: [createdById], references: [id], onDelete: Cascade)
+
+  @@index([effectiveDate])
+  @@index([expiresAt])
+  @@index([createdById])
+}
+
+// Session Model (for express-session with connect-pg-simple)
+model Session {
+  sid    String   @id
+  sess   Json
+  expire DateTime
+
+  @@index([expire])
+}

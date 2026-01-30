@@ -1,0 +1,18 @@
+# Railway ignore file
+# Files and directories to exclude from deployment
+
+node_modules/
+.env.local
+.env.development
+*.log
+.DS_Store
+tmp/
+temp/
+*.md
+!README.md
+!RAILWAY_DEPLOYMENT.md
+.git/
+.github/
+*.backup
+prisma/migrations/*.sql
+.vercel/

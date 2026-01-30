@@ -1,0 +1,9 @@
+.env
+.env.local
+.env.production
+.vercel
+*.log
+node_modules/
+.DS_Store
+
+/generated/prisma
