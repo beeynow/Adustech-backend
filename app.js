@@ -8,6 +8,8 @@ const { Pool } = require('pg');
 const cors = require('cors');
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
+const compression = require('compression');
+const responseTime = require('response-time');
 
 const app = express();
 
@@ -17,11 +19,34 @@ connectDB().catch(err => {
 });
 
 // Env sanity logs (non-sensitive)
-if (!process.env.POWER_ADMIN_EMAIL) {
-  console.warn('⚠️ POWER_ADMIN_EMAIL is not set in .env. No power admin will be auto-assigned.');
-} else {
-  console.log(`🔐 POWER_ADMIN_EMAIL configured: ${process.env.POWER_ADMIN_EMAIL}`);
+// Only log power admin config in development
+if (process.env.NODE_ENV === 'development') {
+  if (!process.env.POWER_ADMIN_EMAIL) {
+    console.warn('⚠️ POWER_ADMIN_EMAIL is not set in .env. No power admin will be auto-assigned.');
+  } else {
+    console.log(`🔐 POWER_ADMIN_EMAIL configured: ${process.env.POWER_ADMIN_EMAIL}`);
+  }
 }
+
+// Response Time Monitoring (adds X-Response-Time header)
+app.use(responseTime((req, res, time) => {
+  // Only log in development or if response is slow (> 2 seconds)
+  if (process.env.NODE_ENV === 'development' || time > 2000) {
+    console.log(`⚡ ${req.method} ${req.url} - ${time.toFixed(2)}ms`);
+  }
+}));
+
+// Compression - Gzip responses for faster transfer
+app.use(compression({
+  filter: (req, res) => {
+    if (req.headers['x-no-compression']) {
+      return false;
+    }
+    return compression.filter(req, res);
+  },
+  level: 6, // Balance between speed and compression ratio
+  threshold: 1024, // Only compress responses > 1KB
+}));
 
 // Security Headers
 app.use(helmet({
@@ -64,8 +89,16 @@ app.use('/api/auth/verify-otp', authLimiter);
 app.use('/api/auth/forgot-password', authLimiter);
 
 // Body parsing middleware with size limits
-app.use(express.json({ limit: '15mb' }));
-app.use(express.urlencoded({ extended: true, limit: '15mb' }));
+app.use(express.json({ 
+  limit: '15mb',
+  strict: true,
+  type: 'application/json'
+}));
+app.use(express.urlencoded({ 
+  extended: true, 
+  limit: '15mb',
+  parameterLimit: 50000
+}));
 
 // Note: NoSQL injection protection not needed for PostgreSQL + Prisma
 // Prisma uses parameterized queries which prevent SQL injection by default
@@ -98,13 +131,39 @@ app.use(session({
   }
 }));
 
-// Health check endpoint
+// Health check endpoint (cached for 5 seconds)
+let healthCache = null;
+let healthCacheTime = 0;
 app.get('/api/health', (req, res) => {
-  res.json({ 
+  const now = Date.now();
+  if (healthCache && (now - healthCacheTime) < 5000) {
+    return res.json(healthCache);
+  }
+  
+  healthCache = { 
     status: 'ok', 
     timestamp: new Date().toISOString(),
     environment: process.env.NODE_ENV || 'development',
+    uptime: process.uptime(),
+    memoryUsage: {
+      heapUsed: Math.round(process.memoryUsage().heapUsed / 1024 / 1024) + 'MB',
+      heapTotal: Math.round(process.memoryUsage().heapTotal / 1024 / 1024) + 'MB',
+    }
+  };
+  healthCacheTime = now;
+  
+  res.json(healthCache);
+});
+
+// Request timeout middleware (30 seconds for all requests)
+app.use((req, res, next) => {
+  req.setTimeout(30000, () => {
+    res.status(408).json({ message: 'Request timeout - please try again' });
   });
+  res.setTimeout(30000, () => {
+    res.status(503).json({ message: 'Service timeout - please try again' });
+  });
+  next();
 });
 
 // API Routes
@@ -161,12 +220,21 @@ if (require.main === module) {
   const HOST = process.env.HOST || '0.0.0.0';
   
   app.listen(PORT, HOST, () => {
-    console.log(`🚀 Server running on ${HOST}:${PORT}`);
-    console.log(`📍 Environment: ${process.env.NODE_ENV || 'development'}`);
-    console.log(`🔗 Health check: http://${HOST}:${PORT}/api/health`);
+    const env = process.env.NODE_ENV || 'development';
+    console.log(`🚀 ADUSTECH Backend Server Started`);
+    console.log(`📍 Environment: ${env}`);
+    console.log(`🔗 Port: ${PORT}`);
+    
+    if (env === 'development') {
+      console.log(`🌐 Local: http://localhost:${PORT}`);
+      console.log(`🏥 Health: http://localhost:${PORT}/api/health`);
+      console.log(`⚡ Performance: Optimized`);
+      console.log(`🔒 Security: Enabled`);
+      console.log(`📧 Email: Configured`);
+    }
     
     if (process.env.RAILWAY_PUBLIC_DOMAIN) {
-      console.log(`🌐 Public URL: https://${process.env.RAILWAY_PUBLIC_DOMAIN}`);
+      console.log(`🌐 Public: https://${process.env.RAILWAY_PUBLIC_DOMAIN}`);
     }
   });
 }

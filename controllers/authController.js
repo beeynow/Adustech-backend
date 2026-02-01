@@ -18,20 +18,20 @@ const generateOTP = () => crypto.randomInt(100000, 999999).toString();
 // Register User and Send OTP
 exports.register = async (req, res) => {
     try {
-        console.log('📝 Registration attempt:', { name: req.body.name, email: req.body.email });
+        if (process.env.NODE_ENV === 'development') {
+            console.log('📝 Registration attempt:', { name: req.body.name, email: req.body.email });
+        }
         
         const { name, email, password } = req.body;
         
         // Validate input
         if (!name || !email || !password) {
-            console.log('❌ Missing fields');
             return res.status(400).json({ message: 'All fields are required' });
         }
         
         const existing = await prisma.user.findUnique({ where: { email } });
 
         if (existing) {
-            console.log('❌ User already exists:', email);
             return res.status(400).json({ message: 'User already exists'});
         }
 
@@ -51,13 +51,21 @@ exports.register = async (req, res) => {
             }
         });
         
-        console.log('✅ User saved to database');
-        console.log('📧 OTP generated:', otp, '(for testing - check this in console)');
+        console.log('✅ User registered successfully:', email);
+        
+        // In development, log OTP for testing
+        if (process.env.NODE_ENV === 'development') {
+            console.log('📧 [DEV] OTP:', otp);
+        }
 
-        // Send rich OTP email
+        // Send OTP email
         const emailResult = await sendOtpEmail(email, name, otp);
         if (!emailResult.success) {
-            console.error('⚠️ Failed to send OTP email, but user is registered. OTP:', otp);
+            console.error('⚠️ Failed to send OTP email to', email);
+            // In development, show OTP in error for manual verification
+            if (process.env.NODE_ENV === 'development') {
+                console.error('📧 [DEV] Use this OTP:', otp);
+            }
         }
 
         res.status(201).json({ message: 'User registered. Please verify OTP sent to email.' });
@@ -132,10 +140,17 @@ exports.resendOTP = async (req, res) => {
             }
         });
 
-        console.log('📧 Resending OTP:', otp, '(for testing - check this in console)');
+        // In development, log OTP for testing
+        if (process.env.NODE_ENV === 'development') {
+            console.log('📧 [DEV] Resend OTP:', otp);
+        }
+        
         const emailResult = await sendResendOtpEmail(email, user.name, otp);
         if (!emailResult.success) {
-            console.error('⚠️ Failed to send resend OTP email. OTP:', otp);
+            console.error('⚠️ Failed to send resend OTP email to', email);
+            if (process.env.NODE_ENV === 'development') {
+                console.error('📧 [DEV] Use this OTP:', otp);
+            }
         }
 
         res.json({ message: 'OTP resent successfully' });
@@ -218,10 +233,17 @@ exports.forgotPassword = async (req, res) => {
             }
         });
 
-        console.log('📧 Password reset token:', resetToken, '(for testing - check this in console)');
+        // In development, log token for testing
+        if (process.env.NODE_ENV === 'development') {
+            console.log('📧 [DEV] Reset token:', resetToken);
+        }
+        
         const emailResult = await sendPasswordResetEmail(user.email, user.name, resetToken);
         if (!emailResult.success) {
-            console.error('⚠️ Failed to send password reset email. Token:', resetToken);
+            console.error('⚠️ Failed to send password reset email to', email);
+            if (process.env.NODE_ENV === 'development') {
+                console.error('📧 [DEV] Use this token:', resetToken);
+            }
         }
         
         res.json({ message: 'Password reset code sent to your email.' });

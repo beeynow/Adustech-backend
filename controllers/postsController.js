@@ -57,18 +57,34 @@ exports.listPosts = async (req, res) => {
         const [posts, total] = await Promise.all([
             prisma.post.findMany({
                 where,
-                include: {
+                select: {
+                    id: true,
+                    createdAt: true,
+                    updatedAt: true,
+                    userId: true,
+                    userName: true,
+                    category: true,
+                    text: true,
+                    imageUrl: true,
+                    imageBase64: true,
                     user: {
                         select: { id: true, name: true, profileImage: true }
                     },
                     likes: {
-                        select: { userId: true }
+                        select: { userId: true },
+                        take: 1000 // Limit likes to prevent huge responses
                     },
                     reposts: {
-                        select: { userId: true }
+                        select: { userId: true },
+                        take: 1000 // Limit reposts
                     },
                     comments: {
-                        include: {
+                        select: {
+                            id: true,
+                            createdAt: true,
+                            text: true,
+                            userName: true,
+                            userId: true,
                             user: {
                                 select: { id: true, name: true, profileImage: true }
                             },
@@ -76,7 +92,15 @@ exports.listPosts = async (req, res) => {
                                 select: { userId: true }
                             }
                         },
-                        orderBy: { createdAt: 'desc' }
+                        orderBy: { createdAt: 'desc' },
+                        take: 50 // Limit comments per post to first 50
+                    },
+                    _count: {
+                        select: {
+                            likes: true,
+                            reposts: true,
+                            comments: true
+                        }
                     }
                 },
                 orderBy: { createdAt: 'desc' },
@@ -94,7 +118,10 @@ exports.listPosts = async (req, res) => {
             comments: post.comments.map(comment => ({
                 ...comment,
                 likes: comment.likes.map(like => like.userId)
-            }))
+            })),
+            likesCount: post._count.likes,
+            repostsCount: post._count.reposts,
+            commentsCount: post._count.comments
         }));
 
         res.json({
