@@ -55,7 +55,10 @@ exports.register = async (req, res) => {
         console.log('📧 OTP generated:', otp, '(for testing - check this in console)');
 
         // Send rich OTP email
-        await sendOtpEmail(email, name, otp);
+        const emailResult = await sendOtpEmail(email, name, otp);
+        if (!emailResult.success) {
+            console.error('⚠️ Failed to send OTP email, but user is registered. OTP:', otp);
+        }
 
         res.status(201).json({ message: 'User registered. Please verify OTP sent to email.' });
     } catch (error) {
@@ -99,7 +102,11 @@ exports.verifyOTP = async (req, res) => {
         });
 
         // Send welcome email upon successful verification
-        await sendWelcomeEmail(updated.email, updated.name);
+        const emailResult = await sendWelcomeEmail(updated.email, updated.name);
+        if (!emailResult.success) {
+            console.error('⚠️ Failed to send welcome email, but verification succeeded');
+        }
+        
         return res.json({ message: 'Email verified successfully. you can now log in.', isVerified: updated.isVerified });
     } catch (error) {
         console.error('❌ Verify OTP error:', error);
@@ -125,7 +132,11 @@ exports.resendOTP = async (req, res) => {
             }
         });
 
-        await sendResendOtpEmail(email, user.name, otp);
+        console.log('📧 Resending OTP:', otp, '(for testing - check this in console)');
+        const emailResult = await sendResendOtpEmail(email, user.name, otp);
+        if (!emailResult.success) {
+            console.error('⚠️ Failed to send resend OTP email. OTP:', otp);
+        }
 
         res.json({ message: 'OTP resent successfully' });
     } catch (error) {
@@ -207,7 +218,12 @@ exports.forgotPassword = async (req, res) => {
             }
         });
 
-        await sendPasswordResetEmail(user.email, user.name, resetToken);
+        console.log('📧 Password reset token:', resetToken, '(for testing - check this in console)');
+        const emailResult = await sendPasswordResetEmail(user.email, user.name, resetToken);
+        if (!emailResult.success) {
+            console.error('⚠️ Failed to send password reset email. Token:', resetToken);
+        }
+        
         res.json({ message: 'Password reset code sent to your email.' });
     } catch (error) {
         console.error('Forgot password error', error);
@@ -239,7 +255,11 @@ exports.resetPassword = async (req, res) => {
             }
         });
 
-        await sendPasswordChangedEmail(user.email, user.name);
+        const emailResult = await sendPasswordChangedEmail(user.email, user.name);
+        if (!emailResult.success) {
+            console.error('⚠️ Failed to send password changed email');
+        }
+        
         res.json({ message: 'Password has been reset successfully.' });
     } catch (error) {
         console.error('Reset password error', error);
@@ -265,7 +285,11 @@ exports.changePassword = async (req, res) => {
             data: { password: await bcrypt.hash(newPassword, 10) }
         });
 
-        await sendPasswordChangedEmail(user.email, user.name);
+        const emailResult = await sendPasswordChangedEmail(user.email, user.name);
+        if (!emailResult.success) {
+            console.error('⚠️ Failed to send password changed email');
+        }
+        
         res.json({ message: 'Password changed successfully.' });
     } catch (error) {
         console.error('Change password error', error);
@@ -306,7 +330,10 @@ exports.createAdmin = async (req, res) => {
                 }
             });
             // Notify user of role change
-            await sendRoleChangeEmail(updated.email, updated.name, previousRole, role);
+            const emailResult = await sendRoleChangeEmail(updated.email, updated.name, previousRole, role);
+            if (!emailResult.success) {
+                console.error('⚠️ Failed to send role change email');
+            }
             return res.json({ message: 'User promoted to admin successfully', user: { id: updated.id, email: updated.email, name: updated.name, role: updated.role } });
         }
 
@@ -321,7 +348,10 @@ exports.createAdmin = async (req, res) => {
             }
         });
         // Notify user of role change
-        await sendRoleChangeEmail(newAdmin.email, newAdmin.name, 'user', role);
+        const emailResult = await sendRoleChangeEmail(newAdmin.email, newAdmin.name, 'user', role);
+        if (!emailResult.success) {
+            console.error('⚠️ Failed to send role change email');
+        }
         return res.status(201).json({ message: 'Admin created successfully', user: { id: newAdmin.id, email: newAdmin.email, name: newAdmin.name, role: newAdmin.role } });
     } catch (error) {
         console.error('Create admin error', error);
@@ -381,7 +411,11 @@ exports.demoteAdmin = async (req, res) => {
         });
         
         // Notify user of role change
-        await sendRoleChangeEmail(user.email, user.name, previousRole, 'user');
+        const emailResult = await sendRoleChangeEmail(user.email, user.name, previousRole, 'user');
+        if (!emailResult.success) {
+            console.error('⚠️ Failed to send role change email');
+        }
+        
         res.json({ message: 'Admin demoted to user successfully' });
     } catch (error) {
         console.error('Demote admin error', error);
