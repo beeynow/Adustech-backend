@@ -88,6 +88,9 @@ app.use('/api/auth/register', authLimiter);
 app.use('/api/auth/verify-otp', authLimiter);
 app.use('/api/auth/forgot-password', authLimiter);
 
+// Serve static files (for email images)
+app.use('/public', express.static('public'));
+
 // Body parsing middleware with size limits
 app.use(express.json({ 
   limit: '15mb',
@@ -99,6 +102,9 @@ app.use(express.urlencoded({
   limit: '15mb',
   parameterLimit: 50000
 }));
+
+// Serve static files (for email logo)
+app.use('/public', express.static('public'));
 
 // Note: NoSQL injection protection not needed for PostgreSQL + Prisma
 // Prisma uses parameterized queries which prevent SQL injection by default
@@ -173,6 +179,7 @@ const postsRoutes = require('./routes/postsRoutes');
 const channelsRoutes = require('./routes/channelsRoutes');
 const eventsRoutes = require('./routes/eventsRoutes');
 const timetablesRoutes = require('./routes/timetablesRoutes');
+const departmentsRoutes = require('./routes/departmentsRoutes');
 
 app.use('/api/auth', authRoutes);
 app.use('/api', profileRoutes);
@@ -180,6 +187,7 @@ app.use('/api', postsRoutes);
 app.use('/api', channelsRoutes);
 app.use('/api', eventsRoutes);
 app.use('/api', timetablesRoutes);
+app.use('/api', departmentsRoutes);
 
 // 404 Handler
 app.use((req, res) => {

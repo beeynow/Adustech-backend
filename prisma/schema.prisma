@@ -27,8 +27,8 @@ model User {
   // Profile Information
   bio          String   @default("")
   profileImage String   @default("")
-  level        String   @default("")
-  department   String   @default("")
+  level        String   @default("") // 100, 200, 300, 400, 500
+  department   String   @default("") // Department name
   faculty      String   @default("")
   phone        String   @default("")
   dateOfBirth  DateTime?
@@ -53,9 +53,12 @@ model User {
   channelMembers  ChannelMember[]
   createdEvents   Event[]
   createdTimetables Timetable[]
+  createdDepartments Department[] @relation("DepartmentCreator")
 
   @@index([email])
   @@index([role])
+  @@index([department])
+  @@index([level])
 }
 
 // Post Model
@@ -73,6 +76,11 @@ model Post {
   imageBase64  String @default("") @db.Text // legacy support
   imageUrl     String @default("")
 
+  // Department and Level filtering
+  departmentId String @default("") // Department ID (empty = public post)
+  department   String @default("") // Department name for display
+  level        String @default("") // Level: 100, 200, 300, 400, 500 (empty = all levels in dept)
+
   // Relations
   likes    PostLike[]
   reposts  PostRepost[]
@@ -81,6 +89,9 @@ model Post {
   @@index([userId])
   @@index([category])
   @@index([createdAt])
+  @@index([departmentId])
+  @@index([department])
+  @@index([level])
 }
 
 // Comment Model
@@ -231,6 +242,32 @@ model Timetable {
   @@index([effectiveDate])
   @@index([expiresAt])
   @@index([createdById])
+}
+
+// Department Model (Department Channels with Level-based Access)
+model Department {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  name        String   @unique // e.g., "Computer Science", "Mathematics"
+  code        String   @unique // e.g., "CSC", "MTH"
+  description String   @default("")
+  faculty     String   @default("") // Faculty name
+  
+  // Available levels in this department
+  levels      String[] @default(["100", "200", "300", "400", "500"])
+  
+  // Status
+  isActive    Boolean  @default(true)
+
+  createdById String
+  createdBy   User     @relation("DepartmentCreator", fields: [createdById], references: [id], onDelete: Cascade)
+
+  @@index([name])
+  @@index([code])
+  @@index([createdById])
+  @@index([isActive])
 }
 
 // Session Model (for express-session with connect-pg-simple)

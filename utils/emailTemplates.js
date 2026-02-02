@@ -1,4 +1,5 @@
 // Beautiful Email Templates
+const { getEmailLogoUrl } = require('./getEmailLogoUrl');
 
 const emailStyles = `
   <style>
@@ -26,14 +27,15 @@ const emailStyles = `
       height: 80px; 
       background-color: white; 
       border-radius: 50%; 
-      display: inline-flex; 
-      align-items: center; 
-      justify-content: center; 
-      font-size: 36px; 
-      font-weight: bold; 
-      color: #1976D2; 
+      display: inline-block; 
       margin-bottom: 20px;
-      letter-spacing: 2px;
+      overflow: hidden;
+      border: 3px solid rgba(255,255,255,0.3);
+    }
+    .logo img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
     }
     .email-title { 
       color: #ffffff; 
@@ -146,6 +148,7 @@ const emailStyles = `
 
 // Welcome Email Template
 const welcomeEmail = (name, email) => {
+  const logoUrl = getEmailLogoUrl();
   return `
     <!DOCTYPE html>
     <html>
@@ -158,7 +161,9 @@ const welcomeEmail = (name, email) => {
     <body>
       <div class="email-container">
         <div class="email-header">
-          <div class="logo">AT</div>
+          <div class="logo">
+            <img src="${logoUrl}" alt="ADUSTECH Logo" />
+          </div>
           <h1 class="email-title">Welcome to ADUSTECH!</h1>
         </div>
         
@@ -233,6 +238,7 @@ const welcomeEmail = (name, email) => {
 
 // OTP Verification Email Template
 const otpEmail = (name, otp) => {
+  const logoUrl = getEmailLogoUrl();
   return `
     <!DOCTYPE html>
     <html>
@@ -245,7 +251,9 @@ const otpEmail = (name, otp) => {
     <body>
       <div class="email-container">
         <div class="email-header">
-          <div class="logo">AT</div>
+          <div class="logo">
+            <img src="${logoUrl}" alt="ADUSTECH Logo" />
+          </div>
           <h1 class="email-title">Verify Your Email</h1>
         </div>
         
@@ -302,6 +310,7 @@ const otpEmail = (name, otp) => {
 
 // Resend OTP Email Template
 const resendOtpEmail = (name, otp) => {
+  const logoUrl = getEmailLogoUrl();
   return `
     <!DOCTYPE html>
     <html>
@@ -314,7 +323,9 @@ const resendOtpEmail = (name, otp) => {
     <body>
       <div class="email-container">
         <div class="email-header">
-          <div class="logo">AT</div>
+          <div class="logo">
+            <img src="${logoUrl}" alt="ADUSTECH Logo" />
+          </div>
           <h1 class="email-title">New Verification Code</h1>
         </div>
         
@@ -363,6 +374,7 @@ const resendOtpEmail = (name, otp) => {
 
 // Password Reset Email Template
 const passwordResetEmail = (name, resetToken, email) => {
+  const logoUrl = getEmailLogoUrl();
   // In production, use actual reset URL
   const resetUrl = `http://localhost:8081/reset-password?token=${resetToken}&email=${email}`;
   
@@ -378,7 +390,9 @@ const passwordResetEmail = (name, resetToken, email) => {
     <body>
       <div class="email-container">
         <div class="email-header">
-          <div class="logo">AT</div>
+          <div class="logo">
+            <img src="${logoUrl}" alt="ADUSTECH Logo" />
+          </div>
           <h1 class="email-title">Reset Your Password</h1>
         </div>
         
@@ -440,6 +454,7 @@ const passwordResetEmail = (name, resetToken, email) => {
 
 // Password Changed Confirmation Email Template
 const passwordChangedEmail = (name, email) => {
+  const logoUrl = getEmailLogoUrl();
   return `
     <!DOCTYPE html>
     <html>
@@ -452,7 +467,9 @@ const passwordChangedEmail = (name, email) => {
     <body>
       <div class="email-container">
         <div class="email-header">
-          <div class="logo">AT</div>
+          <div class="logo">
+            <img src="${logoUrl}" alt="ADUSTECH Logo" />
+          </div>
           <h1 class="email-title">Password Changed Successfully</h1>
         </div>
         
@@ -523,6 +540,7 @@ const passwordChangedEmail = (name, email) => {
 
 // Role Change Notification Email Template
 const roleChangeEmail = (name, email, previousRole, newRole) => {
+  const logoUrl = getEmailLogoUrl();
   return `
     <!DOCTYPE html>
     <html>
@@ -535,7 +553,9 @@ const roleChangeEmail = (name, email, previousRole, newRole) => {
     <body>
       <div class="email-container">
         <div class="email-header">
-          <div class="logo">AT</div>
+          <div class="logo">
+            <img src="${logoUrl}" alt="ADUSTECH Logo" />
+          </div>
           <h1 class="email-title">Your Role Has Been Updated</h1>
         </div>
         <div class="email-body">

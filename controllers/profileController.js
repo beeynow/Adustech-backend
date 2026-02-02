@@ -63,6 +63,32 @@ exports.updateProfile = async (req, res) => {
             country
         } = req.body;
 
+        // Validate level if provided
+        if (level !== undefined && level !== '') {
+            const validLevels = ['100', '200', '300', '400', '500'];
+            if (!validLevels.includes(level)) {
+                return res.status(400).json({ 
+                    message: `Invalid level. Valid levels are: ${validLevels.join(', ')}` 
+                });
+            }
+        }
+
+        // Validate department if provided
+        if (department !== undefined && department !== '') {
+            const departmentExists = await prisma.department.findFirst({
+                where: { 
+                    name: department,
+                    isActive: true
+                }
+            });
+
+            if (!departmentExists) {
+                return res.status(400).json({ 
+                    message: 'Invalid department. Please select an existing active department.' 
+                });
+            }
+        }
+
         const updateData = {};
         if (name !== undefined) updateData.name = name;
         if (bio !== undefined) updateData.bio = bio;

@@ -1,13 +1,13 @@
 const { prisma } = require('../config/db');
 const { uploadToCloudinary } = require('../utils/cloudinary');
 
-// Create Post
+// Create Post (with optional department and level filtering)
 exports.createPost = async (req, res) => {
     try {
         const userId = req.session.user?.id;
         if (!userId) return res.status(401).json({ message: 'Unauthorized' });
 
-        const { text, category, imageBase64 } = req.body;
+        const { text, category, imageBase64, departmentId, level } = req.body;
 
         let imageUrl = '';
         if (imageBase64 && imageBase64.startsWith('data:image')) {
@@ -17,15 +17,43 @@ exports.createPost = async (req, res) => {
 
         const user = await prisma.user.findUnique({ where: { id: userId } });
         
-        const post = await prisma.post.create({
-            data: {
-                userId,
-                userName: user.name,
-                text: text || '',
-                category: category || 'All',
-                imageBase64: imageBase64 || '',
-                imageUrl
+        // Build post data
+        const postData = {
+            userId,
+            userName: user.name,
+            text: text || '',
+            category: category || 'All',
+            imageBase64: imageBase64 || '',
+            imageUrl
+        };
+
+        // If posting to a department channel
+        if (departmentId) {
+            // Verify department exists
+            const department = await prisma.department.findUnique({ 
+                where: { id: departmentId } 
+            });
+
+            if (!department) {
+                return res.status(404).json({ message: 'Department not found' });
             }
+
+            // Validate level if provided
+            if (level) {
+                if (!department.levels.includes(level)) {
+                    return res.status(400).json({ 
+                        message: `Invalid level for this department. Valid levels: ${department.levels.join(', ')}` 
+                    });
+                }
+                postData.level = level;
+            }
+
+            postData.departmentId = departmentId;
+            postData.department = department.name;
+        }
+        
+        const post = await prisma.post.create({
+            data: postData
         });
 
         res.status(201).json({ message: 'Post created successfully', post });
@@ -35,10 +63,19 @@ exports.createPost = async (req, res) => {
     }
 };
 
-// List Posts with pagination and filters
+// List Posts with pagination and filters (with department/level filtering)
 exports.listPosts = async (req, res) => {
     try {
-        const { page = 1, limit = 20, search = '', category = '' } = req.query;
+        const { 
+            page = 1, 
+            limit = 20, 
+            search = '', 
+            category = '',
+            departmentId = '',
+            level = ''
+        } = req.query;
+        
+        const userId = req.session.user?.id;
         const skip = (parseInt(page) - 1) * parseInt(limit);
 
         const where = {};
@@ -54,6 +91,31 @@ exports.listPosts = async (req, res) => {
             where.category = category;
         }
 
+        // Department filtering
+        if (departmentId) {
+            where.departmentId = departmentId;
+            
+            // If user is authenticated, filter by their level
+            if (userId && level) {
+                const user = await prisma.user.findUnique({ 
+                    where: { id: userId },
+                    select: { level: true, department: true }
+                });
+
+                // Only show posts for user's level or posts for all levels (empty level)
+                where.OR = [
+                    { level: user.level },
+                    { level: '' }
+                ];
+            } else if (level) {
+                // Filter by specific level
+                where.level = level;
+            }
+        } else {
+            // If no department specified, only show public posts (no department)
+            where.departmentId = '';
+        }
+
         const [posts, total] = await Promise.all([
             prisma.post.findMany({
                 where,
@@ -67,8 +129,11 @@ exports.listPosts = async (req, res) => {
                     text: true,
                     imageUrl: true,
                     imageBase64: true,
+                    departmentId: true,
+                    department: true,
+                    level: true,
                     user: {
-                        select: { id: true, name: true, profileImage: true }
+                        select: { id: true, name: true, profileImage: true, level: true, department: true }
                     },
                     likes: {
                         select: { userId: true },
