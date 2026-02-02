@@ -1,5 +1,5 @@
 // Beautiful Email Templates
-const { getEmailLogoUrl } = require('./getEmailLogoUrl');
+const { getEmailLogoBase64 } = require('./getEmailLogo');
 
 const emailStyles = `
   <style>
@@ -148,7 +148,7 @@ const emailStyles = `
 
 // Welcome Email Template
 const welcomeEmail = (name, email) => {
-  const logoUrl = getEmailLogoUrl();
+  const logoUrl = getEmailLogoBase64();
   return `
     <!DOCTYPE html>
     <html>
@@ -238,7 +238,7 @@ const welcomeEmail = (name, email) => {
 
 // OTP Verification Email Template
 const otpEmail = (name, otp) => {
-  const logoUrl = getEmailLogoUrl();
+  const logoUrl = getEmailLogoBase64();
   return `
     <!DOCTYPE html>
     <html>
@@ -310,7 +310,7 @@ const otpEmail = (name, otp) => {
 
 // Resend OTP Email Template
 const resendOtpEmail = (name, otp) => {
-  const logoUrl = getEmailLogoUrl();
+  const logoUrl = getEmailLogoBase64();
   return `
     <!DOCTYPE html>
     <html>
@@ -374,7 +374,7 @@ const resendOtpEmail = (name, otp) => {
 
 // Password Reset Email Template
 const passwordResetEmail = (name, resetToken, email) => {
-  const logoUrl = getEmailLogoUrl();
+  const logoUrl = getEmailLogoBase64();
   // In production, use actual reset URL
   const resetUrl = `http://localhost:8081/reset-password?token=${resetToken}&email=${email}`;
   
@@ -454,7 +454,7 @@ const passwordResetEmail = (name, resetToken, email) => {
 
 // Password Changed Confirmation Email Template
 const passwordChangedEmail = (name, email) => {
-  const logoUrl = getEmailLogoUrl();
+  const logoUrl = getEmailLogoBase64();
   return `
     <!DOCTYPE html>
     <html>
@@ -540,7 +540,7 @@ const passwordChangedEmail = (name, email) => {
 
 // Role Change Notification Email Template
 const roleChangeEmail = (name, email, previousRole, newRole) => {
-  const logoUrl = getEmailLogoUrl();
+  const logoUrl = getEmailLogoBase64();
   return `
     <!DOCTYPE html>
     <html>

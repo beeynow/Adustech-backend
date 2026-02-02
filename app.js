@@ -88,9 +88,6 @@ app.use('/api/auth/register', authLimiter);
 app.use('/api/auth/verify-otp', authLimiter);
 app.use('/api/auth/forgot-password', authLimiter);
 
-// Serve static files (for email images)
-app.use('/public', express.static('public'));
-
 // Body parsing middleware with size limits
 app.use(express.json({ 
   limit: '15mb',
