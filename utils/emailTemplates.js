@@ -29,14 +29,21 @@ const emailStyles = `
       display: inline-flex; 
       align-items: center;
       justify-content: center;
-      margin-bottom: 20px;
+      margin: 0 auto 20px;
       box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
       border: 3px solid rgba(255,255,255,0.9);
+      position: relative;
     }
     .logo-icon {
       font-size: 40px;
       line-height: 1;
       filter: drop-shadow(0 2px 4px rgba(0,0,0,0.1));
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 100%;
+      height: 100%;
+      text-align: center;
     }
     .email-title { 
       color: #ffffff; 
