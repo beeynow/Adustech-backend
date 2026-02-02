@@ -21,30 +21,6 @@ const emailStyles = `
       padding: 40px 30px; 
       text-align: center; 
     }
-    .logo { 
-      width: 80px; 
-      height: 80px; 
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-      border-radius: 50%; 
-      display: inline-flex; 
-      align-items: center;
-      justify-content: center;
-      margin: 0 auto 20px;
-      box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
-      border: 3px solid rgba(255,255,255,0.9);
-      position: relative;
-    }
-    .logo-icon {
-      font-size: 40px;
-      line-height: 1;
-      filter: drop-shadow(0 2px 4px rgba(0,0,0,0.1));
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      width: 100%;
-      height: 100%;
-      text-align: center;
-    }
     .email-title { 
       color: #ffffff; 
       font-size: 28px; 
