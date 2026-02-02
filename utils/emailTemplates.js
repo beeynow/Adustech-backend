@@ -1,5 +1,4 @@
 // Beautiful Email Templates
-const { getEmailLogoBase64 } = require('./getEmailLogo');
 
 const emailStyles = `
   <style>
@@ -25,17 +24,19 @@ const emailStyles = `
     .logo { 
       width: 80px; 
       height: 80px; 
-      background-color: white; 
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
       border-radius: 50%; 
-      display: inline-block; 
+      display: inline-flex; 
+      align-items: center;
+      justify-content: center;
       margin-bottom: 20px;
-      overflow: hidden;
-      border: 3px solid rgba(255,255,255,0.3);
+      box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+      border: 3px solid rgba(255,255,255,0.9);
     }
-    .logo img {
-      width: 100%;
-      height: 100%;
-      object-fit: cover;
+    .logo-icon {
+      font-size: 40px;
+      line-height: 1;
+      filter: drop-shadow(0 2px 4px rgba(0,0,0,0.1));
     }
     .email-title { 
       color: #ffffff; 
@@ -148,7 +149,7 @@ const emailStyles = `
 
 // Welcome Email Template
 const welcomeEmail = (name, email) => {
-  const logoUrl = getEmailLogoBase64();
+  // Using graduation cap icon instead of image
   return `
     <!DOCTYPE html>
     <html>
@@ -162,10 +163,7 @@ const welcomeEmail = (name, email) => {
       <div class="email-container">
         <div class="email-header">
           <div class="logo">
-           <img
-    src="https://adustech.vercel.app/email.png"
-    alt="ADUSTECH Logo"
-  />
+           <div class="logo-icon">🎓</div>
           </div>
           <h1 class="email-title">Welcome to ADUSTECH!</h1>
         </div>
@@ -241,7 +239,7 @@ const welcomeEmail = (name, email) => {
 
 // OTP Verification Email Template
 const otpEmail = (name, otp) => {
-  const logoUrl = getEmailLogoBase64();
+  // Using graduation cap icon instead of image
   return `
     <!DOCTYPE html>
     <html>
@@ -255,10 +253,7 @@ const otpEmail = (name, otp) => {
       <div class="email-container">
         <div class="email-header">
           <div class="logo">
-            <img
-    src="https://adustech.vercel.app/email.png"
-    alt="ADUSTECH Logo"
-  />
+            <div class="logo-icon">🎓</div>
           </div>
           <h1 class="email-title">Verify Your Email</h1>
         </div>
@@ -316,7 +311,7 @@ const otpEmail = (name, otp) => {
 
 // Resend OTP Email Template
 const resendOtpEmail = (name, otp) => {
-  const logoUrl = getEmailLogoBase64();
+  // Using graduation cap icon instead of image
   return `
     <!DOCTYPE html>
     <html>
@@ -330,10 +325,7 @@ const resendOtpEmail = (name, otp) => {
       <div class="email-container">
         <div class="email-header">
           <div class="logo">
-            <img
-    src="https://adustech.vercel.app/email.png"
-    alt="ADUSTECH Logo"
-  />
+            <div class="logo-icon">🎓</div>
           </div>
           <h1 class="email-title">New Verification Code</h1>
         </div>
@@ -383,7 +375,7 @@ const resendOtpEmail = (name, otp) => {
 
 // Password Reset Email Template
 const passwordResetEmail = (name, resetToken, email) => {
-  const logoUrl = getEmailLogoBase64();
+  // Using graduation cap icon instead of image
   // In production, use actual reset URL
   const resetUrl = `http://localhost:8081/reset-password?token=${resetToken}&email=${email}`;
   
@@ -400,10 +392,7 @@ const passwordResetEmail = (name, resetToken, email) => {
       <div class="email-container">
         <div class="email-header">
           <div class="logo">
-            <img
-    src="https://adustech.vercel.app/email.png"
-    alt="ADUSTECH Logo"
-  />
+            <div class="logo-icon">🎓</div>
           </div>
           <h1 class="email-title">Reset Your Password</h1>
         </div>
@@ -466,7 +455,7 @@ const passwordResetEmail = (name, resetToken, email) => {
 
 // Password Changed Confirmation Email Template
 const passwordChangedEmail = (name, email) => {
-  const logoUrl = getEmailLogoBase64();
+  // Using graduation cap icon instead of image
   return `
     <!DOCTYPE html>
     <html>
@@ -480,10 +469,7 @@ const passwordChangedEmail = (name, email) => {
       <div class="email-container">
         <div class="email-header">
           <div class="logo">
-            <img
-    src="https://adustech.vercel.app/email.png"
-    alt="ADUSTECH Logo"
-  />
+            <div class="logo-icon">🎓</div>
           </div>
           <h1 class="email-title">Password Changed Successfully</h1>
         </div>
@@ -555,7 +541,7 @@ const passwordChangedEmail = (name, email) => {
 
 // Role Change Notification Email Template
 const roleChangeEmail = (name, email, previousRole, newRole) => {
-  const logoUrl = getEmailLogoBase64();
+  // Using graduation cap icon instead of image
   return `
     <!DOCTYPE html>
     <html>
@@ -569,10 +555,7 @@ const roleChangeEmail = (name, email, previousRole, newRole) => {
       <div class="email-container">
         <div class="email-header">
           <div class="logo">
-            <img
-    src="https://adustech.vercel.app/email.png"
-    alt="ADUSTECH Logo"
-  />
+            <div class="logo-icon">🎓</div>
           </div>
           <h1 class="email-title">Your Role Has Been Updated</h1>
         </div>
