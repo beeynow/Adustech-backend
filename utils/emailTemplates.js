@@ -163,7 +163,7 @@ const welcomeEmail = (name, email) => {
         <div class="email-header">
           <div class="logo">
            <img
-    src="https://adustech.vercel.app/logo.png"
+    src="https://adustech.vercel.app/email.png"
     alt="ADUSTECH Logo"
   />
           </div>
@@ -256,7 +256,7 @@ const otpEmail = (name, otp) => {
         <div class="email-header">
           <div class="logo">
             <img
-    src="https://adustech.vercel.app/logo.png"
+    src="https://adustech.vercel.app/email.png"
     alt="ADUSTECH Logo"
   />
           </div>
@@ -331,7 +331,7 @@ const resendOtpEmail = (name, otp) => {
         <div class="email-header">
           <div class="logo">
             <img
-    src="https://adustech.vercel.app/logo.png"
+    src="https://adustech.vercel.app/email.png"
     alt="ADUSTECH Logo"
   />
           </div>
@@ -401,7 +401,7 @@ const passwordResetEmail = (name, resetToken, email) => {
         <div class="email-header">
           <div class="logo">
             <img
-    src="https://adustech.vercel.app/logo.png"
+    src="https://adustech.vercel.app/email.png"
     alt="ADUSTECH Logo"
   />
           </div>
@@ -481,7 +481,7 @@ const passwordChangedEmail = (name, email) => {
         <div class="email-header">
           <div class="logo">
             <img
-    src="https://adustech.vercel.app/logo.png"
+    src="https://adustech.vercel.app/email.png"
     alt="ADUSTECH Logo"
   />
           </div>
@@ -570,7 +570,7 @@ const roleChangeEmail = (name, email, previousRole, newRole) => {
         <div class="email-header">
           <div class="logo">
             <img
-    src="https://adustech.vercel.app/logo.png"
+    src="https://adustech.vercel.app/email.png"
     alt="ADUSTECH Logo"
   />
           </div>
