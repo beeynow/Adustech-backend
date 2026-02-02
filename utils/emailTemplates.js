@@ -170,7 +170,21 @@ const welcomeEmail = (name, email) => {
       <div class="email-container">
         <div class="email-header">
           <div class="logo">
-           <div class="logo-icon">🎓</div>
+           <div style="
+  width:80px;
+  height:80px;
+  margin:0 auto 20px;
+  border-radius:50%;
+  background:#667eea;
+  text-align:center;
+  line-height:80px;
+  font-size:40px;
+  box-shadow:0 4px 15px rgba(102,126,234,0.4);
+  border:3px solid rgba(255,255,255,0.9);
+">
+  🎓
+</div>
+
           </div>
           <h1 class="email-title">Welcome to ADUSTECH!</h1>
         </div>
@@ -260,7 +274,21 @@ const otpEmail = (name, otp) => {
       <div class="email-container">
         <div class="email-header">
           <div class="logo">
-            <div class="logo-icon">🎓</div>
+            <div style="
+  width:80px;
+  height:80px;
+  margin:0 auto 20px;
+  border-radius:50%;
+  background:#667eea;
+  text-align:center;
+  line-height:80px;
+  font-size:40px;
+  box-shadow:0 4px 15px rgba(102,126,234,0.4);
+  border:3px solid rgba(255,255,255,0.9);
+">
+  🎓
+</div>
+
           </div>
           <h1 class="email-title">Verify Your Email</h1>
         </div>
@@ -332,7 +360,21 @@ const resendOtpEmail = (name, otp) => {
       <div class="email-container">
         <div class="email-header">
           <div class="logo">
-            <div class="logo-icon">🎓</div>
+            <div style="
+  width:80px;
+  height:80px;
+  margin:0 auto 20px;
+  border-radius:50%;
+  background:#667eea;
+  text-align:center;
+  line-height:80px;
+  font-size:40px;
+  box-shadow:0 4px 15px rgba(102,126,234,0.4);
+  border:3px solid rgba(255,255,255,0.9);
+">
+  🎓
+</div>
+
           </div>
           <h1 class="email-title">New Verification Code</h1>
         </div>
@@ -399,7 +441,21 @@ const passwordResetEmail = (name, resetToken, email) => {
       <div class="email-container">
         <div class="email-header">
           <div class="logo">
-            <div class="logo-icon">🎓</div>
+            <div style="
+  width:80px;
+  height:80px;
+  margin:0 auto 20px;
+  border-radius:50%;
+  background:#667eea;
+  text-align:center;
+  line-height:80px;
+  font-size:40px;
+  box-shadow:0 4px 15px rgba(102,126,234,0.4);
+  border:3px solid rgba(255,255,255,0.9);
+">
+  🎓
+</div>
+
           </div>
           <h1 class="email-title">Reset Your Password</h1>
         </div>
@@ -476,7 +532,21 @@ const passwordChangedEmail = (name, email) => {
       <div class="email-container">
         <div class="email-header">
           <div class="logo">
-            <div class="logo-icon">🎓</div>
+            <div style="
+  width:80px;
+  height:80px;
+  margin:0 auto 20px;
+  border-radius:50%;
+  background:#667eea;
+  text-align:center;
+  line-height:80px;
+  font-size:40px;
+  box-shadow:0 4px 15px rgba(102,126,234,0.4);
+  border:3px solid rgba(255,255,255,0.9);
+">
+  🎓
+</div>
+
           </div>
           <h1 class="email-title">Password Changed Successfully</h1>
         </div>
@@ -562,7 +632,21 @@ const roleChangeEmail = (name, email, previousRole, newRole) => {
       <div class="email-container">
         <div class="email-header">
           <div class="logo">
-            <div class="logo-icon">🎓</div>
+            <div style="
+  width:80px;
+  height:80px;
+  margin:0 auto 20px;
+  border-radius:50%;
+  background:#667eea;
+  text-align:center;
+  line-height:80px;
+  font-size:40px;
+  box-shadow:0 4px 15px rgba(102,126,234,0.4);
+  border:3px solid rgba(255,255,255,0.9);
+">
+  🎓
+</div>
+
           </div>
           <h1 class="email-title">Your Role Has Been Updated</h1>
         </div>
