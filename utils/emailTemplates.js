@@ -162,7 +162,10 @@ const welcomeEmail = (name, email) => {
       <div class="email-container">
         <div class="email-header">
           <div class="logo">
-            <img src="${logoUrl}" alt="ADUSTECH Logo" />
+           <img
+    src="https://adustech.vercel.app/logo.png"
+    alt="ADUSTECH Logo"
+  />
           </div>
           <h1 class="email-title">Welcome to ADUSTECH!</h1>
         </div>
@@ -252,7 +255,10 @@ const otpEmail = (name, otp) => {
       <div class="email-container">
         <div class="email-header">
           <div class="logo">
-            <img src="${logoUrl}" alt="ADUSTECH Logo" />
+            <img
+    src="https://adustech.vercel.app/logo.png"
+    alt="ADUSTECH Logo"
+  />
           </div>
           <h1 class="email-title">Verify Your Email</h1>
         </div>
@@ -324,7 +330,10 @@ const resendOtpEmail = (name, otp) => {
       <div class="email-container">
         <div class="email-header">
           <div class="logo">
-            <img src="${logoUrl}" alt="ADUSTECH Logo" />
+            <img
+    src="https://adustech.vercel.app/logo.png"
+    alt="ADUSTECH Logo"
+  />
           </div>
           <h1 class="email-title">New Verification Code</h1>
         </div>
@@ -391,7 +400,10 @@ const passwordResetEmail = (name, resetToken, email) => {
       <div class="email-container">
         <div class="email-header">
           <div class="logo">
-            <img src="${logoUrl}" alt="ADUSTECH Logo" />
+            <img
+    src="https://adustech.vercel.app/logo.png"
+    alt="ADUSTECH Logo"
+  />
           </div>
           <h1 class="email-title">Reset Your Password</h1>
         </div>
@@ -468,7 +480,10 @@ const passwordChangedEmail = (name, email) => {
       <div class="email-container">
         <div class="email-header">
           <div class="logo">
-            <img src="${logoUrl}" alt="ADUSTECH Logo" />
+            <img
+    src="https://adustech.vercel.app/logo.png"
+    alt="ADUSTECH Logo"
+  />
           </div>
           <h1 class="email-title">Password Changed Successfully</h1>
         </div>
@@ -554,7 +569,10 @@ const roleChangeEmail = (name, email, previousRole, newRole) => {
       <div class="email-container">
         <div class="email-header">
           <div class="logo">
-            <img src="${logoUrl}" alt="ADUSTECH Logo" />
+            <img
+    src="https://adustech.vercel.app/logo.png"
+    alt="ADUSTECH Logo"
+  />
           </div>
           <h1 class="email-title">Your Role Has Been Updated</h1>
         </div>
