@@ -5,61 +5,114 @@ const { uploadToCloudinary } = require('../utils/cloudinary');
 exports.createPost = async (req, res) => {
     try {
         const userId = req.session.user?.id;
-        if (!userId) return res.status(401).json({ message: 'Unauthorized' });
+        if (!userId) {
+            console.log('❌ Unauthorized post creation attempt');
+            return res.status(401).json({ message: 'Unauthorized. Please log in to create posts.' });
+        }
 
         const { text, category, imageBase64, departmentId, level } = req.body;
 
-        let imageUrl = '';
-        if (imageBase64 && imageBase64.startsWith('data:image')) {
-            const uploadResult = await uploadToCloudinary(imageBase64, 'posts');
-            imageUrl = uploadResult.secure_url;
+        console.log('📝 Creating post:', { 
+            userId, 
+            hasText: !!text, 
+            hasImage: !!imageBase64,
+            category: category || 'All',
+            departmentId: departmentId || 'public',
+            level: level || 'all'
+        });
+
+        // Validate that at least text or image is provided
+        if (!text && !imageBase64) {
+            return res.status(400).json({ message: 'Post must contain either text or an image' });
         }
 
-        const user = await prisma.user.findUnique({ where: { id: userId } });
+        let imageUrl = '';
+        if (imageBase64 && imageBase64.startsWith('data:image')) {
+            try {
+                console.log('📸 Uploading image to Cloudinary...');
+                const uploadResult = await uploadToCloudinary(imageBase64, 'posts');
+                imageUrl = uploadResult.secure_url;
+                console.log('✅ Image uploaded:', imageUrl);
+            } catch (uploadError) {
+                console.error('❌ Image upload failed:', uploadError.message);
+                return res.status(500).json({ message: 'Failed to upload image', error: uploadError.message });
+            }
+        }
+
+        const user = await prisma.user.findUnique({ 
+            where: { id: userId },
+            select: { id: true, name: true, department: true, level: true }
+        });
+
+        if (!user) {
+            return res.status(404).json({ message: 'User not found' });
+        }
         
         // Build post data
         const postData = {
             userId,
             userName: user.name,
-            text: text || '',
+            text: text?.trim() || '',
             category: category || 'All',
-            imageBase64: imageBase64 || '',
-            imageUrl
+            imageBase64: '', // Don't store base64 in DB if we have imageUrl
+            imageUrl,
+            departmentId: '',
+            department: '',
+            level: ''
         };
 
         // If posting to a department channel
-        if (departmentId) {
+        if (departmentId && departmentId.trim()) {
             // Verify department exists
             const department = await prisma.department.findUnique({ 
                 where: { id: departmentId } 
             });
 
             if (!department) {
+                console.log('❌ Department not found:', departmentId);
                 return res.status(404).json({ message: 'Department not found' });
             }
 
             // Validate level if provided
-            if (level) {
+            if (level && level.trim()) {
                 if (!department.levels.includes(level)) {
                     return res.status(400).json({ 
                         message: `Invalid level for this department. Valid levels: ${department.levels.join(', ')}` 
                     });
                 }
                 postData.level = level;
+            } else {
+                // Department post without specific level - requires level selection
+                return res.status(400).json({ 
+                    message: 'Please select a level when posting to a department' 
+                });
             }
 
             postData.departmentId = departmentId;
             postData.department = department.name;
+            console.log('🎓 Posting to department:', department.name, 'Level:', level);
+        } else {
+            console.log('🌍 Creating public post');
         }
         
         const post = await prisma.post.create({
-            data: postData
+            data: postData,
+            include: {
+                user: {
+                    select: { id: true, name: true, profileImage: true }
+                }
+            }
         });
 
+        console.log('✅ Post created successfully:', post.id);
         res.status(201).json({ message: 'Post created successfully', post });
     } catch (error) {
-        console.error('Error creating post:', error);
-        res.status(500).json({ message: 'Error creating post', error: error.message });
+        console.error('❌ Error creating post:', error);
+        res.status(500).json({ 
+            message: 'Error creating post', 
+            error: error.message,
+            details: process.env.NODE_ENV === 'development' ? error.stack : undefined
+        });
     }
 };
 
@@ -95,25 +148,18 @@ exports.listPosts = async (req, res) => {
         if (departmentId) {
             where.departmentId = departmentId;
             
-            // If user is authenticated, filter by their level
-            if (userId && level) {
-                const user = await prisma.user.findUnique({ 
-                    where: { id: userId },
-                    select: { level: true, department: true }
-                });
-
-                // Only show posts for user's level or posts for all levels (empty level)
+            // Filter by specific level if provided
+            if (level) {
+                // Show posts for this level or posts for all levels in this department
                 where.OR = [
-                    { level: user.level },
+                    { level: level },
                     { level: '' }
                 ];
-            } else if (level) {
-                // Filter by specific level
-                where.level = level;
             }
         } else {
-            // If no department specified, only show public posts (no department)
-            where.departmentId = '';
+            // If no department specified, show public posts (departmentId is empty string)
+            // This allows seeing all posts when no filter is applied
+            // Don't add departmentId filter - show all posts
         }
 
         const [posts, total] = await Promise.all([
@@ -341,14 +387,14 @@ exports.toggleRepostPost = async (req, res) => {
     }
 };
 
-// Add Comment
+// Add Comment (supports nested comments/replies)
 exports.addComment = async (req, res) => {
     try {
         const userId = req.session.user?.id;
         if (!userId) return res.status(401).json({ message: 'Unauthorized' });
 
         const { id: postId } = req.params;
-        const { text } = req.body;
+        const { text, parentId } = req.body;
 
         if (!text) {
             return res.status(400).json({ message: 'Comment text is required' });
@@ -360,6 +406,23 @@ exports.addComment = async (req, res) => {
             return res.status(404).json({ message: 'Post not found' });
         }
 
+        // If this is a reply, verify parent comment exists
+        if (parentId) {
+            const parentComment = await prisma.comment.findUnique({ 
+                where: { id: parentId },
+                select: { postId: true }
+            });
+            
+            if (!parentComment) {
+                return res.status(404).json({ message: 'Parent comment not found' });
+            }
+            
+            // Ensure parent comment belongs to the same post
+            if (parentComment.postId !== postId) {
+                return res.status(400).json({ message: 'Parent comment does not belong to this post' });
+            }
+        }
+
         const user = await prisma.user.findUnique({ where: { id: userId } });
 
         const comment = await prisma.comment.create({
@@ -367,7 +430,8 @@ exports.addComment = async (req, res) => {
                 postId,
                 userId,
                 userName: user.name,
-                text
+                text,
+                parentId: parentId || null
             },
             include: {
                 user: {
@@ -375,14 +439,18 @@ exports.addComment = async (req, res) => {
                 },
                 likes: {
                     select: { userId: true }
-                }
+                },
+                parent: parentId ? {
+                    select: { id: true, userName: true, text: true }
+                } : false
             }
         });
 
         // Transform comment
         const transformedComment = {
             ...comment,
-            likes: comment.likes.map(like => like.userId)
+            likes: comment.likes.map(like => like.userId),
+            likesCount: comment.likes.length
         };
 
         res.status(201).json({ message: 'Comment added', comment: transformedComment });
@@ -392,11 +460,12 @@ exports.addComment = async (req, res) => {
     }
 };
 
-// List Comments for a Post
+// List Comments for a Post (with nested replies)
 exports.listComments = async (req, res) => {
     try {
         const { id: postId } = req.params;
 
+        // Get all comments (including replies)
         const comments = await prisma.comment.findMany({
             where: { postId },
             include: {
@@ -405,6 +474,23 @@ exports.listComments = async (req, res) => {
                 },
                 likes: {
                     select: { userId: true }
+                },
+                parent: {
+                    select: { id: true, userName: true, text: true }
+                },
+                replies: {
+                    include: {
+                        user: {
+                            select: { id: true, name: true, profileImage: true }
+                        },
+                        likes: {
+                            select: { userId: true }
+                        }
+                    },
+                    orderBy: { createdAt: 'asc' }
+                },
+                _count: {
+                    select: { replies: true, likes: true }
                 }
             },
             orderBy: { createdAt: 'desc' }
@@ -413,10 +499,20 @@ exports.listComments = async (req, res) => {
         // Transform comments
         const transformedComments = comments.map(comment => ({
             ...comment,
-            likes: comment.likes.map(like => like.userId)
+            likes: comment.likes.map(like => like.userId),
+            likesCount: comment._count.likes,
+            repliesCount: comment._count.replies,
+            replies: comment.replies.map(reply => ({
+                ...reply,
+                likes: reply.likes.map(like => like.userId),
+                likesCount: reply.likes.length
+            }))
         }));
 
-        res.json({ comments: transformedComments });
+        // Filter out nested replies from top level (only show parent comments at top level)
+        const topLevelComments = transformedComments.filter(comment => !comment.parentId);
+
+        res.json({ comments: topLevelComments });
     } catch (error) {
         console.error('Error listing comments:', error);
         res.status(500).json({ message: 'Error fetching comments', error: error.message });

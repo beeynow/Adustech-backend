@@ -17,7 +17,8 @@ const registerValidation = [
   body('name')
     .trim()
     .notEmpty().withMessage('Name is required')
-    .isLength({ min: 2, max: 100 }).withMessage('Name must be between 2 and 100 characters'),
+    .isLength({ min: 2, max: 100 }).withMessage('Name must be between 2 and 100 characters')
+    .matches(/^[a-zA-Z\s'-]+$/).withMessage('Name can only contain letters, spaces, hyphens, and apostrophes'),
   body('email')
     .trim()
     .notEmpty().withMessage('Email is required')
@@ -25,7 +26,10 @@ const registerValidation = [
     .normalizeEmail(),
   body('password')
     .notEmpty().withMessage('Password is required')
-    .isLength({ min: 6 }).withMessage('Password must be at least 6 characters'),
+    .isLength({ min: 8, max: 128 }).withMessage('Password must be between 8 and 128 characters')
+    .matches(/[A-Z]/).withMessage('Password must contain at least one uppercase letter')
+    .matches(/[a-z]/).withMessage('Password must contain at least one lowercase letter')
+    .matches(/[0-9]/).withMessage('Password must contain at least one number'),
   validate
 ];
 
@@ -36,7 +40,8 @@ const loginValidation = [
     .isEmail().withMessage('Must be a valid email address')
     .normalizeEmail(),
   body('password')
-    .notEmpty().withMessage('Password is required'),
+    .notEmpty().withMessage('Password is required')
+    .isLength({ min: 1, max: 128 }).withMessage('Invalid password'),
   validate
 ];
 
@@ -47,9 +52,11 @@ const verifyOtpValidation = [
     .isEmail().withMessage('Must be a valid email address')
     .normalizeEmail(),
   body('otp')
+    .trim()
     .notEmpty().withMessage('OTP is required')
     .isLength({ min: 6, max: 6 }).withMessage('OTP must be 6 digits')
-    .isNumeric().withMessage('OTP must be numeric'),
+    .isNumeric().withMessage('OTP must be numeric')
+    .matches(/^\d{6}$/).withMessage('OTP must be exactly 6 digits'),
   validate
 ];
 
@@ -110,11 +117,33 @@ const createPostValidation = [
   body('text')
     .optional()
     .trim()
-    .isLength({ max: 2000 }).withMessage('Text must not exceed 2000 characters'),
+    .isLength({ max: 500 }).withMessage('Text must not exceed 500 characters'),
   body('category')
     .optional()
     .isIn(['All', 'Level', 'Department', 'Exam', 'Timetable', 'Event'])
     .withMessage('Invalid category'),
+  body('imageBase64')
+    .optional()
+    .custom((value) => {
+      if (value && !value.startsWith('data:image/')) {
+        throw new Error('Image must be a valid base64 data URL');
+      }
+      return true;
+    }),
+  body('departmentId')
+    .optional()
+    .trim(),
+  body('level')
+    .optional()
+    .trim()
+    .isLength({ max: 50 }).withMessage('Level must not exceed 50 characters'),
+  // At least one of text or imageBase64 must be provided
+  body().custom((value, { req }) => {
+    if (!req.body.text && !req.body.imageBase64) {
+      throw new Error('Post must contain either text or an image');
+    }
+    return true;
+  }),
   validate
 ];
 

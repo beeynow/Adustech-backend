@@ -107,11 +107,17 @@ model Comment {
   userName String
   text     String
 
+  // Nested comments (replies)
+  parentId String?
+  parent   Comment?  @relation("CommentReplies", fields: [parentId], references: [id], onDelete: Cascade)
+  replies  Comment[] @relation("CommentReplies")
+
   // Relations
   likes CommentLike[]
 
   @@index([postId])
   @@index([userId])
+  @@index([parentId])
 }
 
 // PostLike Model (Many-to-Many)
