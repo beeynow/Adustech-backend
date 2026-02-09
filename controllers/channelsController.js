@@ -21,7 +21,7 @@ exports.listChannels = async (req, res) => {
                 },
                 members: {
                     include: {
-                        user: {
+                        User: {
                             select: { id: true, name: true, email: true, profileImage: true }
                         }
                     }
@@ -67,7 +67,7 @@ exports.createChannel = async (req, res) => {
                 },
                 members: {
                     include: {
-                        user: {
+                        User: {
                             select: { id: true, name: true, email: true }
                         }
                     }
@@ -100,7 +100,7 @@ exports.getChannel = async (req, res) => {
                 },
                 members: {
                     include: {
-                        user: {
+                        User: {
                             select: { id: true, name: true, email: true, profileImage: true }
                         }
                     }
