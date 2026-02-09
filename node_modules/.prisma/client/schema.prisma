@@ -135,7 +135,7 @@ model Post {
 }
 
 model PostLike {
-  id        String   @id
+  id        String   @id @default(cuid())
   createdAt DateTime @default(now())
   postId    String
   userId    String
@@ -148,7 +148,7 @@ model PostLike {
 }
 
 model PostRepost {
-  id        String   @id
+  id        String   @id @default(cuid())
   createdAt DateTime @default(now())
   postId    String
   userId    String
