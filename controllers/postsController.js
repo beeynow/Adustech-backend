@@ -98,7 +98,7 @@ exports.createPost = async (req, res) => {
         const post = await prisma.post.create({
             data: postData,
             include: {
-                user: {
+                User: {
                     select: { id: true, name: true, profileImage: true }
                 }
             }
@@ -178,7 +178,7 @@ exports.listPosts = async (req, res) => {
                     departmentId: true,
                     department: true,
                     level: true,
-                    user: {
+                    User: {
                         select: { id: true, name: true, profileImage: true, level: true, department: true }
                     },
                     likes: {
@@ -196,7 +196,7 @@ exports.listPosts = async (req, res) => {
                             text: true,
                             userName: true,
                             userId: true,
-                            user: {
+                            User: {
                                 select: { id: true, name: true, profileImage: true }
                             },
                             likes: {
@@ -258,7 +258,7 @@ exports.getPost = async (req, res) => {
         const post = await prisma.post.findUnique({
             where: { id },
             include: {
-                user: {
+                User: {
                     select: { id: true, name: true, profileImage: true }
                 },
                 likes: {
@@ -269,7 +269,7 @@ exports.getPost = async (req, res) => {
                 },
                 comments: {
                     include: {
-                        user: {
+                        User: {
                             select: { id: true, name: true, profileImage: true }
                         },
                         likes: {
@@ -434,7 +434,7 @@ exports.addComment = async (req, res) => {
                 parentId: parentId || null
             },
             include: {
-                user: {
+                User: {
                     select: { id: true, name: true, profileImage: true }
                 },
                 likes: {
@@ -469,7 +469,7 @@ exports.listComments = async (req, res) => {
         const comments = await prisma.comment.findMany({
             where: { postId },
             include: {
-                user: {
+                User: {
                     select: { id: true, name: true, profileImage: true }
                 },
                 likes: {
@@ -480,7 +480,7 @@ exports.listComments = async (req, res) => {
                 },
                 replies: {
                     include: {
-                        user: {
+                        User: {
                             select: { id: true, name: true, profileImage: true }
                         },
                         likes: {
