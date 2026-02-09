@@ -54,8 +54,8 @@ exports.createPost = async (req, res) => {
             userName: user.name,
             text: text?.trim() || '',
             category: category || 'All',
-            imageBase64: '', // Don't store base64 in DB if we have imageUrl
-            imageUrl,
+            imageBase64: imageUrl ? '' : (imageBase64 || ''), // Only store base64 if no imageUrl
+            imageUrl: imageUrl || '',
             departmentId: '',
             department: '',
             level: ''
