@@ -8,7 +8,7 @@ datasource db {
 }
 
 model Channel {
-  id            String          @id
+  id            String          @id @default(cuid())
   createdAt     DateTime        @default(now())
   updatedAt     DateTime
   name          String
@@ -23,7 +23,7 @@ model Channel {
 }
 
 model ChannelMember {
-  id        String   @id
+  id        String   @id @default(cuid())
   createdAt DateTime @default(now())
   channelId String
   userId    String
@@ -36,7 +36,7 @@ model ChannelMember {
 }
 
 model Comment {
-  id            String        @id
+  id            String        @id @default(cuid())
   createdAt     DateTime      @default(now())
   updatedAt     DateTime
   postId        String
@@ -56,7 +56,7 @@ model Comment {
 }
 
 model CommentLike {
-  id        String   @id
+  id        String   @id @default(cuid())
   createdAt DateTime @default(now())
   commentId String
   userId    String
@@ -69,7 +69,7 @@ model CommentLike {
 }
 
 model Department {
-  id          String   @id
+  id          String   @id @default(cuid())
   createdAt   DateTime @default(now())
   updatedAt   DateTime
   name        String   @unique
@@ -88,7 +88,7 @@ model Department {
 }
 
 model Event {
-  id            String   @id
+  id            String   @id @default(cuid())
   createdAt     DateTime @default(now())
   updatedAt     DateTime
   title         String
@@ -169,7 +169,7 @@ model Session {
 }
 
 model Timetable {
-  id            String   @id
+  id            String   @id @default(cuid())
   createdAt     DateTime @default(now())
   updatedAt     DateTime
   title         String
@@ -188,7 +188,7 @@ model Timetable {
 }
 
 model User {
-  id                   String          @id
+  id                   String          @id @default(cuid())
   createdAt            DateTime        @default(now())
   updatedAt            DateTime
   name                 String
