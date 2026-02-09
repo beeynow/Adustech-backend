@@ -62,7 +62,7 @@ exports.createDepartment = async (req, res) => {
                 createdById: userId
             },
             include: {
-                createdBy: {
+                User: {
                     select: {
                         id: true,
                         name: true,
@@ -99,7 +99,7 @@ exports.getDepartments = async (req, res) => {
         const departments = await prisma.department.findMany({
             where,
             include: {
-                createdBy: {
+                User: {
                     select: {
                         id: true,
                         name: true
@@ -129,7 +129,7 @@ exports.getDepartmentById = async (req, res) => {
         const department = await prisma.department.findUnique({
             where: { id },
             include: {
-                createdBy: {
+                User: {
                     select: {
                         id: true,
                         name: true,
@@ -194,7 +194,7 @@ exports.updateDepartment = async (req, res) => {
             where: { id },
             data: updateData,
             include: {
-                createdBy: {
+                User: {
                     select: {
                         id: true,
                         name: true
