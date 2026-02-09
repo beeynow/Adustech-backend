@@ -11,7 +11,7 @@ exports.listEvents = async (req, res) => {
                 expiresAt: { gte: now } // Only show non-expired events
             },
             include: {
-                createdBy: {
+                User: {
                     select: { id: true, name: true, email: true }
                 }
             },
@@ -61,7 +61,7 @@ exports.createEvent = async (req, res) => {
                 createdByName: user.name
             },
             include: {
-                createdBy: {
+                User: {
                     select: { id: true, name: true, email: true }
                 }
             }
@@ -82,7 +82,7 @@ exports.getEvent = async (req, res) => {
         const event = await prisma.event.findUnique({
             where: { id },
             include: {
-                createdBy: {
+                User: {
                     select: { id: true, name: true, email: true }
                 }
             }

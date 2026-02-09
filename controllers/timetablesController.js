@@ -11,7 +11,7 @@ exports.listTimetables = async (req, res) => {
                 expiresAt: { gte: now } // Only show non-expired timetables
             },
             include: {
-                createdBy: {
+                User: {
                     select: { id: true, name: true, email: true }
                 }
             },
@@ -56,7 +56,7 @@ exports.createTimetable = async (req, res) => {
                 createdByName: user.name
             },
             include: {
-                createdBy: {
+                User: {
                     select: { id: true, name: true, email: true }
                 }
             }
@@ -77,7 +77,7 @@ exports.getTimetable = async (req, res) => {
         const timetable = await prisma.timetable.findUnique({
             where: { id },
             include: {
-                createdBy: {
+                User: {
                     select: { id: true, name: true, email: true }
                 }
             }

@@ -16,7 +16,7 @@ exports.listChannels = async (req, res) => {
                 ]
             },
             include: {
-                createdBy: {
+                User: {
                     select: { id: true, name: true, email: true }
                 },
                 members: {
@@ -62,7 +62,7 @@ exports.createChannel = async (req, res) => {
                 }
             },
             include: {
-                createdBy: {
+                User: {
                     select: { id: true, name: true, email: true }
                 },
                 members: {
@@ -95,7 +95,7 @@ exports.getChannel = async (req, res) => {
         const channel = await prisma.channel.findUnique({
             where: { id },
             include: {
-                createdBy: {
+                User: {
                     select: { id: true, name: true, email: true }
                 },
                 members: {
