@@ -12,18 +12,18 @@ datasource db {
 // ============================================================================
 
 model Faculty {
-  id          String   @id @default(cuid())
-  name        String   @unique
-  code        String   @unique
+  id          String  @id @default(cuid())
+  name        String  @unique
+  code        String  @unique
   description String?
-  isActive    Boolean  @default(true) @map("is_active")
-  
+  isActive    Boolean @default(true) @map("is_active")
+
   departments Department[]
-  users       User[]     @relation("UserFaculty")
+  users       User[]       @relation("UserFaculty")
   posts       Post[]
-  
-  createdAt   DateTime @default(now()) @map("created_at")
-  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
   @@index([isActive])
   @@index([code])
@@ -31,40 +31,45 @@ model Faculty {
 }
 
 model Department {
-  id          String   @id @default(cuid())
-  facultyId   String   @map("faculty_id")
+  id          String  @id @default(cuid())
+  facultyId   String  @map("faculty_id")
   name        String
   code        String
-  description String?
-  isActive    Boolean  @default(true) @map("is_active")
-  
-  faculty          Faculty    @relation(fields: [facultyId], references: [id], onDelete: Cascade)
-  levels           Level[]
-  users            User[]     @relation("UserDepartment")
-  managedByAdmins  User[]     @relation("ManagedDepartment")
-  
-  createdAt   DateTime @default(now()) @map("created_at")
-  updatedAt   DateTime @updatedAt @map("updated_at")
+  description String  @default("")
+  isActive    Boolean @default(true) @map("is_active")
+  createdById String  @map("created_by_id")
+
+  faculty         Faculty @relation(fields: [facultyId], references: [id], onDelete: Cascade)
+  levels          Level[]
+  users           User[]  @relation("UserDepartment")
+  managedByAdmins User[]  @relation("ManagedDepartment")
+  createdBy       User    @relation("DepartmentCreator", fields: [createdById], references: [id])
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
   @@unique([facultyId, code])
   @@index([facultyId])
   @@index([isActive])
+  @@index([code])
+  @@index([createdById])
   @@map("departments")
 }
 
 model Level {
-  id           String   @id @default(cuid())
-  departmentId String   @map("department_id")
-  levelNumber  Int      @map("level_number")
-  displayName  String   @map("display_name")
-  isActive     Boolean  @default(true) @map("is_active")
-  
-  department  Department @relation(fields: [departmentId], references: [id], onDelete: Cascade)
-  users       User[]     @relation("UserLevel")
-  posts       Post[]
-  
-  createdAt   DateTime @default(now()) @map("created_at")
-  updatedAt   DateTime @updatedAt @map("updated_at")
+  id           String  @id @default(cuid())
+  departmentId String  @map("department_id")
+  levelNumber  Int     @map("level_number")
+  displayName  String  @map("display_name")
+  isActive     Boolean @default(true) @map("is_active")
+
+  department Department @relation(fields: [departmentId], references: [id], onDelete: Cascade)
+  users      User[]     @relation("UserLevel")
+  posts      Post[]
+  channels   Channel[]  @relation("LevelChannels")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
   @@unique([departmentId, levelNumber])
   @@index([departmentId])
@@ -74,31 +79,72 @@ model Level {
 }
 
 model Channel {
-  id            String          @id @default(cuid())
-  createdAt     DateTime        @default(now())
-  updatedAt     DateTime
-  name          String
-  description   String          @default("")
-  visibility    String          @default("public")
-  createdById   String
-  User          User            @relation(fields: [createdById], references: [id], onDelete: Cascade)
-  ChannelMember ChannelMember[]
+  id          String @id @default(cuid())
+  name        String
+  description String @default("")
+  visibility  String @default("public")
+  createdById String @map("created_by_id")
+
+  // Auto-association with academic structure
+  facultyId    String? @map("faculty_id")
+  departmentId String? @map("department_id")
+  levelId      String? @map("level_id")
+
+  // Channel scope: global, faculty, department, level
+  scope String @default("global")
+
+  createdBy User             @relation(fields: [createdById], references: [id], onDelete: Cascade)
+  level     Level?           @relation("LevelChannels", fields: [levelId], references: [id], onDelete: SetNull)
+  members   ChannelMember[]
+  messages  ChannelMessage[]
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
   @@index([createdById])
   @@index([name])
+  @@index([scope])
+  @@index([facultyId])
+  @@index([departmentId])
+  @@index([levelId])
+  @@map("channels")
 }
 
 model ChannelMember {
-  id        String   @id @default(cuid())
-  createdAt DateTime @default(now())
-  channelId String
-  userId    String
-  Channel   Channel  @relation(fields: [channelId], references: [id], onDelete: Cascade)
-  User      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id        String  @id @default(cuid())
+  channelId String  @map("channel_id")
+  userId    String  @map("user_id")
+  role      String  @default("member")
+  isActive  Boolean @default(true) @map("is_active")
+
+  channel Channel @relation(fields: [channelId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  joinedAt  DateTime @default(now()) @map("joined_at")
+  createdAt DateTime @default(now()) @map("created_at")
 
   @@unique([channelId, userId])
   @@index([channelId])
   @@index([userId])
+  @@map("channel_members")
+}
+
+model ChannelMessage {
+  id        String @id @default(cuid())
+  channelId String @map("channel_id")
+  userId    String @map("user_id")
+  content   String
+
+  channel Channel @relation(fields: [channelId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([channelId])
+  @@index([userId])
+  @@index([createdAt])
+  @@map("channel_messages")
 }
 
 model Comment {
@@ -134,24 +180,7 @@ model CommentLike {
   @@index([userId])
 }
 
-model Department {
-  id          String   @id @default(cuid())
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime
-  name        String   @unique
-  code        String   @unique
-  description String   @default("")
-  faculty     String   @default("")
-  levels      String[] @default(["100", "200", "300", "400", "500"])
-  isActive    Boolean  @default(true)
-  createdById String
-  User        User     @relation(fields: [createdById], references: [id], onDelete: Cascade)
-
-  @@index([code])
-  @@index([createdById])
-  @@index([isActive])
-  @@index([name])
-}
+// OLD Department model removed - now using integrated academic structure above
 
 model Event {
   id            String   @id @default(cuid())
@@ -175,29 +204,53 @@ model Event {
 }
 
 model Post {
-  id           String       @id @default(cuid())
-  createdAt    DateTime     @default(now())
-  updatedAt    DateTime     @updatedAt
-  userId       String
-  userName     String
-  category     String       @default("All")
-  text         String       @default("")
-  imageBase64  String       @default("") @db.Text
-  imageUrl     String       @default("")
-  department   String       @default("")
-  departmentId String       @default("")
-  level        String       @default("")
-  Comment      Comment[]
-  User         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
-  PostLike     PostLike[]
-  PostRepost   PostRepost[]
+  id       String @id @default(cuid())
+  userId   String @map("user_id")
+  userName String @map("user_name")
 
+  // Content
+  title       String?
+  text        String  @default("")
+  category    String  @default("All")
+  imageBase64 String  @default("") @db.Text
+  imageUrl    String  @default("")
+
+  // Old system (backward compatibility)
+  department   String @default("")
+  departmentId String @default("")
+  level        String @default("")
+
+  // New academic system
+  facultyId String? @map("faculty_id")
+  levelId   String? @map("level_id")
+
+  // Metadata
+  priority String  @default("normal")
+  isPinned Boolean @default(false) @map("is_pinned")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  faculty   Faculty? @relation(fields: [facultyId], references: [id], onDelete: SetNull)
+  levelPost Level?   @relation(fields: [levelId], references: [id], onDelete: SetNull)
+
+  comments    Comment[]
+  postLikes   PostLike[]
+  postReposts PostRepost[]
+
+  @@index([userId])
   @@index([category])
   @@index([createdAt])
-  @@index([departmentId])
+  @@index([facultyId])
+  @@index([levelId])
+  @@index([isPinned])
+  @@index([priority])
   @@index([department])
   @@index([level])
-  @@index([userId])
+  @@index([departmentId])
+  @@map("posts")
 }
 
 model PostLike {
@@ -254,41 +307,66 @@ model Timetable {
 }
 
 model User {
-  id                   String          @id @default(cuid())
-  createdAt            DateTime        @default(now())
-  updatedAt            DateTime        @updatedAt
-  name                 String
-  email                String          @unique
-  password             String
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  name      String
+  email     String   @unique
+  matricNo  String?  @unique @map("matric_no")
+  password  String
+  role      String   @default("user")
+
+  // Academic associations (new system)
+  facultyId           String? @map("faculty_id")
+  departmentId        String? @map("department_id")
+  levelId             String? @map("level_id")
+  managedDepartmentId String? @map("managed_department_id")
+
+  // Old system fields (for backward compatibility)
+  level      String @default("")
+  department String @default("")
+  faculty    String @default("")
+
+  // Profile
   otp                  String?
-  otpExpiry            DateTime?
-  isVerified           Boolean         @default(false)
-  bio                  String          @default("")
-  profileImage         String          @default("")
-  level                String          @default("")
-  department           String          @default("")
-  faculty              String          @default("")
-  phone                String          @default("")
+  otpExpiry            DateTime? @map("otp_expiry")
+  isVerified           Boolean   @default(false)
+  bio                  String    @default("")
+  profileImage         String    @default("")
+  phone                String    @default("")
   dateOfBirth          DateTime?
-  gender               String          @default("")
-  address              String          @default("")
-  country              String          @default("")
+  gender               String    @default("")
+  address              String    @default("")
+  country              String    @default("")
   resetPasswordToken   String?
   resetPasswordExpires DateTime?
-  role                 String          @default("user")
-  Channel              Channel[]
-  ChannelMember        ChannelMember[]
-  Comment              Comment[]
-  CommentLike          CommentLike[]
-  Department           Department[]
-  Event                Event[]
-  Post                 Post[]
-  PostLike             PostLike[]
-  PostRepost           PostRepost[]
-  Timetable            Timetable[]
 
-  @@index([department])
+  // Relations
+  facultyRel        Faculty?    @relation("UserFaculty", fields: [facultyId], references: [id], onDelete: SetNull)
+  departmentRel     Department? @relation("UserDepartment", fields: [departmentId], references: [id], onDelete: SetNull)
+  levelRel          Level?      @relation("UserLevel", fields: [levelId], references: [id], onDelete: SetNull)
+  managedDepartment Department? @relation("ManagedDepartment", fields: [managedDepartmentId], references: [id], onDelete: SetNull)
+
+  departmentsCreated Department[]     @relation("DepartmentCreator")
+  channels           Channel[]
+  channelMembers     ChannelMember[]
+  channelMessages    ChannelMessage[]
+  comments           Comment[]
+  commentLikes       CommentLike[]
+  events             Event[]
+  posts              Post[]
+  postLikes          PostLike[]
+  postReposts        PostRepost[]
+  timetables         Timetable[]
+
   @@index([email])
-  @@index([level])
+  @@index([matricNo])
   @@index([role])
+  @@index([facultyId])
+  @@index([departmentId])
+  @@index([levelId])
+  @@index([managedDepartmentId])
+  @@index([department])
+  @@index([level])
+  @@map("users")
 }
