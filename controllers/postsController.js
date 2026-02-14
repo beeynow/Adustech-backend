@@ -21,15 +21,33 @@ exports.createPost = async (req, res) => {
             level: level || 'all'
         });
 
-        // Validate that at least text or image is provided
-        if (!text && !imageBase64) {
+        // Validate that at least text or image is provided (already checked by validation middleware)
+        const trimmedText = text?.trim() || '';
+        if (!trimmedText && !imageBase64) {
             return res.status(400).json({ message: 'Post must contain either text or an image' });
+        }
+
+        // Additional security: Validate text length
+        if (trimmedText && trimmedText.length > 500) {
+            return res.status(400).json({ message: 'Post text must not exceed 500 characters' });
         }
 
         let imageUrl = '';
         if (imageBase64 && imageBase64.startsWith('data:image')) {
             try {
                 console.log('📸 Uploading image to Cloudinary...');
+                
+                // Validate image size (approximate - base64 is ~33% larger than actual file)
+                const base64Length = imageBase64.length;
+                const estimatedSizeInMB = (base64Length * 0.75) / (1024 * 1024);
+                
+                if (estimatedSizeInMB > 15) {
+                    return res.status(400).json({ 
+                        message: 'Image is too large. Maximum size is 15MB',
+                        details: `Estimated size: ${estimatedSizeInMB.toFixed(2)}MB`
+                    });
+                }
+                
                 const uploadResult = await uploadToCloudinary(imageBase64, 'posts');
                 imageUrl = uploadResult.secure_url;
                 console.log('✅ Image uploaded:', imageUrl);
@@ -37,6 +55,9 @@ exports.createPost = async (req, res) => {
                 console.error('❌ Image upload failed:', uploadError.message);
                 return res.status(500).json({ message: 'Failed to upload image', error: uploadError.message });
             }
+        } else if (imageBase64) {
+            // Invalid image format
+            return res.status(400).json({ message: 'Invalid image format. Must be a valid base64 data URL' });
         }
 
         const user = await prisma.user.findUnique({ 
@@ -48,13 +69,13 @@ exports.createPost = async (req, res) => {
             return res.status(404).json({ message: 'User not found' });
         }
         
-        // Build post data
+        // Build post data with sanitized inputs
         const postData = {
             userId,
             userName: user.name,
-            text: text?.trim() || '',
+            text: trimmedText,
             category: category || 'All',
-            imageBase64: imageUrl ? '' : (imageBase64 || ''), // Only store base64 if no imageUrl
+            imageBase64: imageUrl ? '' : '', // Don't store base64 if we have cloudinary URL
             imageUrl: imageUrl || '',
             departmentId: '',
             department: '',
@@ -129,39 +150,44 @@ exports.listPosts = async (req, res) => {
         } = req.query;
         
         const userId = req.session.user?.id;
-        const skip = (parseInt(page) - 1) * parseInt(limit);
+        
+        // Validate pagination parameters
+        const pageNum = Math.max(1, parseInt(page) || 1);
+        const limitNum = Math.min(100, Math.max(1, parseInt(limit) || 20)); // Max 100 per page
+        const skip = (pageNum - 1) * limitNum;
 
         const where = {};
         
-        if (search) {
+        // Search filtering with sanitization
+        if (search && typeof search === 'string' && search.trim()) {
+            const sanitizedSearch = search.trim().slice(0, 100); // Limit search length
             where.OR = [
-                { text: { contains: search, mode: 'insensitive' } },
-                { userName: { contains: search, mode: 'insensitive' } }
+                { text: { contains: sanitizedSearch, mode: 'insensitive' } },
+                { userName: { contains: sanitizedSearch, mode: 'insensitive' } }
             ];
         }
         
-        if (category && category !== 'All') {
+        // Category filtering with validation
+        const validCategories = ['All', 'Level', 'Department', 'Exam', 'Timetable', 'Event'];
+        if (category && category !== 'All' && validCategories.includes(category)) {
             where.category = category;
         }
 
         // Department filtering
-        if (departmentId) {
-            where.departmentId = departmentId;
+        if (departmentId && typeof departmentId === 'string' && departmentId.trim()) {
+            where.departmentId = departmentId.trim();
             
             // Filter by specific level if provided
-            if (level) {
+            if (level && typeof level === 'string' && level.trim()) {
                 // Show posts for this level or posts for all levels in this department
                 where.OR = [
-                    { level: level },
+                    { level: level.trim() },
                     { level: '' }
                 ];
             }
-        } else {
-            // If no department specified, show public posts (departmentId is empty string)
-            // This allows seeing all posts when no filter is applied
-            // Don't add departmentId filter - show all posts
         }
 
+        // Fetch posts and total count
         const [posts, total] = await Promise.all([
             prisma.post.findMany({
                 where,
@@ -181,14 +207,16 @@ exports.listPosts = async (req, res) => {
                     User: {
                         select: { id: true, name: true, profileImage: true, level: true, department: true }
                     },
-                    likes: {
+                    likes: userId ? {
+                        where: { userId }, // Only fetch current user's like status
                         select: { userId: true },
-                        take: 1000 // Limit likes to prevent huge responses
-                    },
-                    reposts: {
+                        take: 1
+                    } : false,
+                    reposts: userId ? {
+                        where: { userId }, // Only fetch current user's repost status
                         select: { userId: true },
-                        take: 1000 // Limit reposts
-                    },
+                        take: 1
+                    } : false,
                     comments: {
                         select: {
                             id: true,
@@ -200,11 +228,12 @@ exports.listPosts = async (req, res) => {
                                 select: { id: true, name: true, profileImage: true }
                             },
                             likes: {
-                                select: { userId: true }
+                                select: { userId: true },
+                                take: 100
                             }
                         },
                         orderBy: { createdAt: 'desc' },
-                        take: 50 // Limit comments per post to first 50
+                        take: 5 // Only show first 5 comments in list view
                     },
                     _count: {
                         select: {
@@ -216,37 +245,54 @@ exports.listPosts = async (req, res) => {
                 },
                 orderBy: { createdAt: 'desc' },
                 skip,
-                take: parseInt(limit)
+                take: limitNum
             }),
             prisma.post.count({ where })
         ]);
 
+        console.log(`📋 Listed ${posts.length} posts (page ${pageNum}, total: ${total})`);
+
         // Transform data to match frontend expectations
-        const transformedPosts = posts.map(post => ({
-            ...post,
-            likes: post.likes.map(like => like.userId),
-            reposts: post.reposts.map(repost => repost.userId),
-            comments: post.comments.map(comment => ({
-                ...comment,
-                likes: comment.likes.map(like => like.userId)
-            })),
-            likesCount: post._count.likes,
-            repostsCount: post._count.reposts,
-            commentsCount: post._count.comments
-        }));
+        const transformedPosts = posts.map(post => {
+            const isLikedByUser = userId && post.likes && post.likes.length > 0;
+            const isRepostedByUser = userId && post.reposts && post.reposts.length > 0;
+            
+            return {
+                ...post,
+                likes: post.likes ? post.likes.map(like => like.userId) : [],
+                reposts: post.reposts ? post.reposts.map(repost => repost.userId) : [],
+                comments: post.comments.map(comment => ({
+                    ...comment,
+                    likes: comment.likes.map(like => like.userId),
+                    likesCount: comment.likes.length
+                })),
+                likesCount: post._count.likes,
+                repostsCount: post._count.reposts,
+                commentsCount: post._count.comments,
+                isLiked: isLikedByUser,
+                isReposted: isRepostedByUser
+            };
+        });
 
         res.json({
+            success: true,
             posts: transformedPosts,
             pagination: {
                 total,
-                page: parseInt(page),
-                limit: parseInt(limit),
-                pages: Math.ceil(total / parseInt(limit))
+                page: pageNum,
+                limit: limitNum,
+                pages: Math.ceil(total / limitNum),
+                hasMore: skip + posts.length < total
             }
         });
     } catch (error) {
-        console.error('Error listing posts:', error);
-        res.status(500).json({ message: 'Error fetching posts', error: error.message });
+        console.error('❌ Error listing posts:', error);
+        res.status(500).json({ 
+            success: false,
+            message: 'Error fetching posts', 
+            error: error.message,
+            details: process.env.NODE_ENV === 'development' ? error.stack : undefined
+        });
     }
 };
 
@@ -254,29 +300,56 @@ exports.listPosts = async (req, res) => {
 exports.getPost = async (req, res) => {
     try {
         const { id } = req.params;
+        const userId = req.session.user?.id;
 
         const post = await prisma.post.findUnique({
             where: { id },
             include: {
                 User: {
-                    select: { id: true, name: true, profileImage: true }
+                    select: { id: true, name: true, profileImage: true, department: true, level: true }
                 },
                 likes: {
-                    select: { userId: true }
+                    select: { userId: true },
+                    take: 1000
                 },
                 reposts: {
-                    select: { userId: true }
+                    select: { userId: true },
+                    take: 1000
                 },
                 comments: {
+                    where: { parentId: null }, // Only get top-level comments
                     include: {
                         User: {
                             select: { id: true, name: true, profileImage: true }
                         },
                         likes: {
                             select: { userId: true }
+                        },
+                        replies: {
+                            include: {
+                                User: {
+                                    select: { id: true, name: true, profileImage: true }
+                                },
+                                likes: {
+                                    select: { userId: true }
+                                }
+                            },
+                            orderBy: { createdAt: 'asc' },
+                            take: 50 // Limit replies per comment
+                        },
+                        _count: {
+                            select: { replies: true, likes: true }
                         }
                     },
-                    orderBy: { createdAt: 'desc' }
+                    orderBy: { createdAt: 'desc' },
+                    take: 100 // Limit to first 100 comments
+                },
+                _count: {
+                    select: {
+                        likes: true,
+                        reposts: true,
+                        comments: true
+                    }
                 }
             }
         });
@@ -285,21 +358,48 @@ exports.getPost = async (req, res) => {
             return res.status(404).json({ message: 'Post not found' });
         }
 
-        // Transform data
+        console.log('📖 Fetched post:', { postId: id, userId: post.userId });
+
+        // Transform data with user interaction states
+        const isLikedByUser = userId && post.likes.some(like => like.userId === userId);
+        const isRepostedByUser = userId && post.reposts.some(repost => repost.userId === userId);
+
         const transformedPost = {
             ...post,
             likes: post.likes.map(like => like.userId),
             reposts: post.reposts.map(repost => repost.userId),
-            comments: post.comments.map(comment => ({
-                ...comment,
-                likes: comment.likes.map(like => like.userId)
-            }))
+            comments: post.comments.map(comment => {
+                const commentIsLiked = userId && comment.likes.some(like => like.userId === userId);
+                return {
+                    ...comment,
+                    likes: comment.likes.map(like => like.userId),
+                    likesCount: comment._count.likes,
+                    repliesCount: comment._count.replies,
+                    isLiked: commentIsLiked,
+                    replies: comment.replies.map(reply => ({
+                        ...reply,
+                        likes: reply.likes.map(like => like.userId),
+                        likesCount: reply.likes.length,
+                        isLiked: userId && reply.likes.some(like => like.userId === userId)
+                    }))
+                };
+            }),
+            likesCount: post._count.likes,
+            repostsCount: post._count.reposts,
+            commentsCount: post._count.comments,
+            isLiked: isLikedByUser,
+            isReposted: isRepostedByUser
         };
 
-        res.json({ post: transformedPost });
+        res.json({ success: true, post: transformedPost });
     } catch (error) {
-        console.error('Error getting post:', error);
-        res.status(500).json({ message: 'Error fetching post', error: error.message });
+        console.error('❌ Error getting post:', error);
+        res.status(500).json({ 
+            success: false,
+            message: 'Error fetching post', 
+            error: error.message,
+            details: process.env.NODE_ENV === 'development' ? error.stack : undefined
+        });
     }
 };
 
@@ -307,12 +407,18 @@ exports.getPost = async (req, res) => {
 exports.toggleLikePost = async (req, res) => {
     try {
         const userId = req.session.user?.id;
-        if (!userId) return res.status(401).json({ message: 'Unauthorized' });
+        if (!userId) {
+            return res.status(401).json({ message: 'Unauthorized. Please log in to like posts.' });
+        }
 
         const { id: postId } = req.params;
 
         // Check if post exists
-        const post = await prisma.post.findUnique({ where: { id: postId } });
+        const post = await prisma.post.findUnique({ 
+            where: { id: postId },
+            select: { id: true }
+        });
+        
         if (!post) {
             return res.status(404).json({ message: 'Post not found' });
         }
@@ -324,6 +430,9 @@ exports.toggleLikePost = async (req, res) => {
             }
         });
 
+        let liked = false;
+        let totalLikes = 0;
+
         if (existingLike) {
             // Unlike
             await prisma.postLike.delete({
@@ -331,17 +440,32 @@ exports.toggleLikePost = async (req, res) => {
                     postId_userId: { postId, userId }
                 }
             });
-            res.json({ message: 'Post unliked', liked: false });
+            liked = false;
+            console.log('👎 Post unliked:', { postId, userId });
         } else {
             // Like
             await prisma.postLike.create({
                 data: { postId, userId }
             });
-            res.json({ message: 'Post liked', liked: true });
+            liked = true;
+            console.log('👍 Post liked:', { postId, userId });
         }
+
+        // Get updated like count
+        totalLikes = await prisma.postLike.count({ where: { postId } });
+
+        res.json({ 
+            message: liked ? 'Post liked successfully' : 'Post unliked successfully', 
+            liked,
+            totalLikes
+        });
     } catch (error) {
-        console.error('Error toggling like:', error);
-        res.status(500).json({ message: 'Error toggling like', error: error.message });
+        console.error('❌ Error toggling like:', error);
+        res.status(500).json({ 
+            message: 'Error toggling like', 
+            error: error.message,
+            details: process.env.NODE_ENV === 'development' ? error.stack : undefined
+        });
     }
 };
 
@@ -349,14 +473,25 @@ exports.toggleLikePost = async (req, res) => {
 exports.toggleRepostPost = async (req, res) => {
     try {
         const userId = req.session.user?.id;
-        if (!userId) return res.status(401).json({ message: 'Unauthorized' });
+        if (!userId) {
+            return res.status(401).json({ message: 'Unauthorized. Please log in to repost.' });
+        }
 
         const { id: postId } = req.params;
 
         // Check if post exists
-        const post = await prisma.post.findUnique({ where: { id: postId } });
+        const post = await prisma.post.findUnique({ 
+            where: { id: postId },
+            select: { id: true, userId: true }
+        });
+        
         if (!post) {
             return res.status(404).json({ message: 'Post not found' });
+        }
+
+        // Prevent users from reposting their own posts
+        if (post.userId === userId) {
+            return res.status(400).json({ message: 'You cannot repost your own post' });
         }
 
         // Check if already reposted
@@ -366,6 +501,9 @@ exports.toggleRepostPost = async (req, res) => {
             }
         });
 
+        let reposted = false;
+        let totalReposts = 0;
+
         if (existingRepost) {
             // Unrepost
             await prisma.postRepost.delete({
@@ -373,17 +511,32 @@ exports.toggleRepostPost = async (req, res) => {
                     postId_userId: { postId, userId }
                 }
             });
-            res.json({ message: 'Post unreposted', reposted: false });
+            reposted = false;
+            console.log('🔄 Post unreposted:', { postId, userId });
         } else {
             // Repost
             await prisma.postRepost.create({
                 data: { postId, userId }
             });
-            res.json({ message: 'Post reposted', reposted: true });
+            reposted = true;
+            console.log('🔄 Post reposted:', { postId, userId });
         }
+
+        // Get updated repost count
+        totalReposts = await prisma.postRepost.count({ where: { postId } });
+
+        res.json({ 
+            message: reposted ? 'Post reposted successfully' : 'Post unreposted successfully', 
+            reposted,
+            totalReposts
+        });
     } catch (error) {
-        console.error('Error toggling repost:', error);
-        res.status(500).json({ message: 'Error toggling repost', error: error.message });
+        console.error('❌ Error toggling repost:', error);
+        res.status(500).json({ 
+            message: 'Error toggling repost', 
+            error: error.message,
+            details: process.env.NODE_ENV === 'development' ? error.stack : undefined
+        });
     }
 };
 
@@ -391,26 +544,38 @@ exports.toggleRepostPost = async (req, res) => {
 exports.addComment = async (req, res) => {
     try {
         const userId = req.session.user?.id;
-        if (!userId) return res.status(401).json({ message: 'Unauthorized' });
+        if (!userId) {
+            return res.status(401).json({ message: 'Unauthorized. Please log in to comment.' });
+        }
 
         const { id: postId } = req.params;
         const { text, parentId } = req.body;
 
-        if (!text) {
+        // Validate and sanitize text
+        const trimmedText = text?.trim();
+        if (!trimmedText) {
             return res.status(400).json({ message: 'Comment text is required' });
         }
 
+        if (trimmedText.length > 500) {
+            return res.status(400).json({ message: 'Comment must not exceed 500 characters' });
+        }
+
         // Check if post exists
-        const post = await prisma.post.findUnique({ where: { id: postId } });
+        const post = await prisma.post.findUnique({ 
+            where: { id: postId },
+            select: { id: true, userId: true }
+        });
+        
         if (!post) {
             return res.status(404).json({ message: 'Post not found' });
         }
 
-        // If this is a reply, verify parent comment exists
+        // If this is a reply, verify parent comment exists and belongs to this post
         if (parentId) {
             const parentComment = await prisma.comment.findUnique({ 
                 where: { id: parentId },
-                select: { postId: true }
+                select: { id: true, postId: true }
             });
             
             if (!parentComment) {
@@ -423,15 +588,25 @@ exports.addComment = async (req, res) => {
             }
         }
 
-        const user = await prisma.user.findUnique({ where: { id: userId } });
+        // Get user info
+        const user = await prisma.user.findUnique({ 
+            where: { id: userId },
+            select: { id: true, name: true, profileImage: true }
+        });
 
+        if (!user) {
+            return res.status(404).json({ message: 'User not found' });
+        }
+
+        // Create comment with updatedAt timestamp
         const comment = await prisma.comment.create({
             data: {
                 postId,
                 userId,
                 userName: user.name,
-                text,
-                parentId: parentId || null
+                text: trimmedText,
+                parentId: parentId || null,
+                updatedAt: new Date()
             },
             include: {
                 User: {
@@ -442,21 +617,31 @@ exports.addComment = async (req, res) => {
                 },
                 parent: parentId ? {
                     select: { id: true, userName: true, text: true }
-                } : false
+                } : false,
+                _count: {
+                    select: { replies: true, likes: true }
+                }
             }
         });
 
-        // Transform comment
+        console.log('✅ Comment added:', { commentId: comment.id, postId, userId, isReply: !!parentId });
+
+        // Transform comment for response
         const transformedComment = {
             ...comment,
             likes: comment.likes.map(like => like.userId),
-            likesCount: comment.likes.length
+            likesCount: comment._count.likes,
+            repliesCount: comment._count.replies
         };
 
-        res.status(201).json({ message: 'Comment added', comment: transformedComment });
+        res.status(201).json({ message: 'Comment added successfully', comment: transformedComment });
     } catch (error) {
-        console.error('Error adding comment:', error);
-        res.status(500).json({ message: 'Error adding comment', error: error.message });
+        console.error('❌ Error adding comment:', error);
+        res.status(500).json({ 
+            message: 'Error adding comment', 
+            error: error.message,
+            details: process.env.NODE_ENV === 'development' ? error.stack : undefined
+        });
     }
 };
 
@@ -464,19 +649,31 @@ exports.addComment = async (req, res) => {
 exports.listComments = async (req, res) => {
     try {
         const { id: postId } = req.params;
+        const userId = req.session.user?.id;
 
-        // Get all comments (including replies)
+        // Verify post exists
+        const postExists = await prisma.post.findUnique({
+            where: { id: postId },
+            select: { id: true }
+        });
+
+        if (!postExists) {
+            return res.status(404).json({ message: 'Post not found' });
+        }
+
+        // Get all top-level comments with nested replies
         const comments = await prisma.comment.findMany({
-            where: { postId },
+            where: { 
+                postId,
+                parentId: null // Only top-level comments
+            },
             include: {
                 User: {
                     select: { id: true, name: true, profileImage: true }
                 },
                 likes: {
-                    select: { userId: true }
-                },
-                parent: {
-                    select: { id: true, userName: true, text: true }
+                    select: { userId: true },
+                    take: 100
                 },
                 replies: {
                     include: {
@@ -484,38 +681,61 @@ exports.listComments = async (req, res) => {
                             select: { id: true, name: true, profileImage: true }
                         },
                         likes: {
-                            select: { userId: true }
+                            select: { userId: true },
+                            take: 100
+                        },
+                        _count: {
+                            select: { likes: true }
                         }
                     },
-                    orderBy: { createdAt: 'asc' }
+                    orderBy: { createdAt: 'asc' },
+                    take: 50 // Limit replies per comment
                 },
                 _count: {
                     select: { replies: true, likes: true }
                 }
             },
-            orderBy: { createdAt: 'desc' }
+            orderBy: { createdAt: 'desc' },
+            take: 100 // Limit to first 100 top-level comments
         });
 
-        // Transform comments
-        const transformedComments = comments.map(comment => ({
-            ...comment,
-            likes: comment.likes.map(like => like.userId),
-            likesCount: comment._count.likes,
-            repliesCount: comment._count.replies,
-            replies: comment.replies.map(reply => ({
-                ...reply,
-                likes: reply.likes.map(like => like.userId),
-                likesCount: reply.likes.length
-            }))
-        }));
+        console.log(`💬 Listed ${comments.length} comments for post ${postId}`);
 
-        // Filter out nested replies from top level (only show parent comments at top level)
-        const topLevelComments = transformedComments.filter(comment => !comment.parentId);
+        // Transform comments with user interaction states
+        const transformedComments = comments.map(comment => {
+            const commentIsLiked = userId && comment.likes.some(like => like.userId === userId);
+            
+            return {
+                ...comment,
+                likes: comment.likes.map(like => like.userId),
+                likesCount: comment._count.likes,
+                repliesCount: comment._count.replies,
+                isLiked: commentIsLiked,
+                replies: comment.replies.map(reply => {
+                    const replyIsLiked = userId && reply.likes.some(like => like.userId === userId);
+                    return {
+                        ...reply,
+                        likes: reply.likes.map(like => like.userId),
+                        likesCount: reply._count.likes,
+                        isLiked: replyIsLiked
+                    };
+                })
+            };
+        });
 
-        res.json({ comments: topLevelComments });
+        res.json({ 
+            success: true,
+            comments: transformedComments,
+            total: comments.length
+        });
     } catch (error) {
-        console.error('Error listing comments:', error);
-        res.status(500).json({ message: 'Error fetching comments', error: error.message });
+        console.error('❌ Error listing comments:', error);
+        res.status(500).json({ 
+            success: false,
+            message: 'Error fetching comments', 
+            error: error.message,
+            details: process.env.NODE_ENV === 'development' ? error.stack : undefined
+        });
     }
 };
 
@@ -523,12 +743,18 @@ exports.listComments = async (req, res) => {
 exports.toggleLikeComment = async (req, res) => {
     try {
         const userId = req.session.user?.id;
-        if (!userId) return res.status(401).json({ message: 'Unauthorized' });
+        if (!userId) {
+            return res.status(401).json({ message: 'Unauthorized. Please log in to like comments.' });
+        }
 
         const { commentId } = req.params;
 
         // Check if comment exists
-        const comment = await prisma.comment.findUnique({ where: { id: commentId } });
+        const comment = await prisma.comment.findUnique({ 
+            where: { id: commentId },
+            select: { id: true, postId: true }
+        });
+        
         if (!comment) {
             return res.status(404).json({ message: 'Comment not found' });
         }
@@ -540,6 +766,9 @@ exports.toggleLikeComment = async (req, res) => {
             }
         });
 
+        let liked = false;
+        let totalLikes = 0;
+
         if (existingLike) {
             // Unlike
             await prisma.commentLike.delete({
@@ -547,17 +776,32 @@ exports.toggleLikeComment = async (req, res) => {
                     commentId_userId: { commentId, userId }
                 }
             });
-            res.json({ message: 'Comment unliked', liked: false });
+            liked = false;
+            console.log('👎 Comment unliked:', { commentId, userId });
         } else {
             // Like
             await prisma.commentLike.create({
                 data: { commentId, userId }
             });
-            res.json({ message: 'Comment liked', liked: true });
+            liked = true;
+            console.log('👍 Comment liked:', { commentId, userId });
         }
+
+        // Get updated like count
+        totalLikes = await prisma.commentLike.count({ where: { commentId } });
+
+        res.json({ 
+            message: liked ? 'Comment liked successfully' : 'Comment unliked successfully', 
+            liked,
+            totalLikes
+        });
     } catch (error) {
-        console.error('Error toggling comment like:', error);
-        res.status(500).json({ message: 'Error toggling comment like', error: error.message });
+        console.error('❌ Error toggling comment like:', error);
+        res.status(500).json({ 
+            message: 'Error toggling comment like', 
+            error: error.message,
+            details: process.env.NODE_ENV === 'development' ? error.stack : undefined
+        });
     }
 };
 

@@ -178,6 +178,11 @@ const eventsRoutes = require('./routes/eventsRoutes');
 const timetablesRoutes = require('./routes/timetablesRoutes');
 const departmentsRoutes = require('./routes/departmentsRoutes');
 
+// Integrated Academic System Routes
+const academicPostsRoutes = require('./routes/academicPostsRoutes');
+const integratedChannelsRoutes = require('./routes/integratedChannelsRoutes');
+const facultiesRoutes = require('./routes/facultiesRoutes');
+
 app.use('/api/auth', authRoutes);
 app.use('/api', profileRoutes);
 app.use('/api', postsRoutes);
@@ -185,6 +190,13 @@ app.use('/api', channelsRoutes);
 app.use('/api', eventsRoutes);
 app.use('/api', timetablesRoutes);
 app.use('/api', departmentsRoutes);
+
+// Integrated Academic Routes (New System)
+app.use('/api/academic', academicPostsRoutes);
+app.use('/api/integrated-channels', integratedChannelsRoutes);
+app.use('/api/faculties', facultiesRoutes);
+app.use('/api/departments', facultiesRoutes);
+app.use('/api/levels', facultiesRoutes);
 
 // 404 Handler
 app.use((req, res) => {

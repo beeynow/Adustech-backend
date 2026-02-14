@@ -1,0 +1,300 @@
+// ============================================================================
+// ACADEMIC NOTICE BOARD SYSTEM - PRISMA SCHEMA
+// Production-ready schema for Academic Notice Board
+// ============================================================================
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================================================
+// FACULTIES
+// ============================================================================
+model Faculty {
+  id          String   @id @default(uuid())
+  name        String   @unique
+  code        String   @unique
+  description String?
+  isActive    Boolean  @default(true) @map("is_active")
+  
+  // Relations
+  departments Department[]
+  users       User[]
+  posts       Post[]
+  
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@index([isActive])
+  @@index([code])
+  @@map("faculties")
+}
+
+// ============================================================================
+// DEPARTMENTS
+// ============================================================================
+model Department {
+  id          String   @id @default(uuid())
+  facultyId   String   @map("faculty_id")
+  name        String
+  code        String
+  description String?
+  isActive    Boolean  @default(true) @map("is_active")
+  
+  // Relations
+  faculty          Faculty @relation(fields: [facultyId], references: [id], onDelete: Cascade)
+  levels           Level[]
+  users            User[]
+  managedByAdmins  User[]  @relation("ManagedDepartment")
+  
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@unique([facultyId, code])
+  @@index([facultyId])
+  @@index([isActive])
+  @@index([code])
+  @@map("departments")
+}
+
+// ============================================================================
+// LEVELS
+// ============================================================================
+model Level {
+  id           String   @id @default(uuid())
+  departmentId String   @map("department_id")
+  levelNumber  Int      @map("level_number")
+  displayName  String   @map("display_name")
+  isActive     Boolean  @default(true) @map("is_active")
+  
+  // Relations
+  department  Department @relation(fields: [departmentId], references: [id], onDelete: Cascade)
+  users       User[]
+  posts       Post[]
+  
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@unique([departmentId, levelNumber])
+  @@index([departmentId])
+  @@index([levelNumber])
+  @@index([isActive])
+  @@map("levels")
+}
+
+// ============================================================================
+// USERS
+// ============================================================================
+model User {
+  id           String   @id @default(uuid())
+  fullName     String   @map("full_name")
+  email        String   @unique
+  matricNo     String?  @unique @map("matric_no")
+  passwordHash String   @map("password_hash")
+  
+  // Role: user, d_admin, admin, power_admin
+  role         String   @default("user")
+  
+  // Academic associations
+  facultyId    String?  @map("faculty_id")
+  departmentId String?  @map("department_id")
+  levelId      String?  @map("level_id")
+  
+  // For d_admin: managed department
+  managedDepartmentId String? @map("managed_department_id")
+  
+  // Account status
+  isActive      Boolean  @default(true) @map("is_active")
+  isVerified    Boolean  @default(false) @map("is_verified")
+  emailVerified Boolean  @default(false) @map("email_verified")
+  
+  // Security
+  otp              String?
+  otpExpiry        DateTime? @map("otp_expiry")
+  resetToken       String?   @map("reset_token")
+  resetTokenExpiry DateTime? @map("reset_token_expiry")
+  
+  // Timestamps
+  lastLogin    DateTime? @map("last_login")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+  
+  // Relations
+  faculty           Faculty?     @relation(fields: [facultyId], references: [id], onDelete: SetNull)
+  department        Department?  @relation(fields: [departmentId], references: [id], onDelete: SetNull)
+  level             Level?       @relation(fields: [levelId], references: [id], onDelete: SetNull)
+  managedDepartment Department?  @relation("ManagedDepartment", fields: [managedDepartmentId], references: [id], onDelete: SetNull)
+  
+  posts         Post[]
+  comments      Comment[]
+  postLikes     PostLike[]
+  commentLikes  CommentLike[]
+  postViews     PostView[]
+
+  @@index([email])
+  @@index([matricNo])
+  @@index([role])
+  @@index([facultyId])
+  @@index([departmentId])
+  @@index([levelId])
+  @@index([managedDepartmentId])
+  @@index([isActive])
+  @@map("users")
+}
+
+// ============================================================================
+// POSTS
+// ============================================================================
+model Post {
+  id          String   @id @default(uuid())
+  authorId    String   @map("author_id")
+  
+  // Post scope (determines visibility)
+  facultyId   String?  @map("faculty_id")
+  levelId     String?  @map("level_id")
+  
+  // Content
+  title       String
+  content     String   @db.Text
+  imageUrl    String?  @map("image_url")
+  
+  // Metadata
+  category    String   @default("General")
+  priority    String   @default("normal")
+  isPinned    Boolean  @default(false) @map("is_pinned")
+  isPublished Boolean  @default(true) @map("is_published")
+  
+  // Engagement counters
+  likesCount    Int @default(0) @map("likes_count")
+  commentsCount Int @default(0) @map("comments_count")
+  viewsCount    Int @default(0) @map("views_count")
+  
+  // Timestamps
+  publishedAt DateTime  @default(now()) @map("published_at")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+  
+  // Relations
+  author   User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  faculty  Faculty? @relation(fields: [facultyId], references: [id], onDelete: Cascade)
+  level    Level?   @relation(fields: [levelId], references: [id], onDelete: Cascade)
+  
+  comments Comment[]
+  likes    PostLike[]
+  views    PostView[]
+
+  @@index([authorId])
+  @@index([facultyId])
+  @@index([levelId])
+  @@index([isPublished])
+  @@index([isPinned])
+  @@index([createdAt(sort: Desc)])
+  @@index([category])
+  @@index([priority])
+  // Composite indexes for common queries
+  @@index([facultyId, levelId, createdAt(sort: Desc)])
+  @@map("posts")
+}
+
+// ============================================================================
+// COMMENTS
+// ============================================================================
+model Comment {
+  id        String   @id @default(uuid())
+  postId    String   @map("post_id")
+  userId    String   @map("user_id")
+  parentId  String?  @map("parent_id")
+  
+  content   String   @db.Text
+  
+  // Status
+  isEdited   Boolean  @default(false) @map("is_edited")
+  isDeleted  Boolean  @default(false) @map("is_deleted")
+  
+  // Engagement
+  likesCount Int @default(0) @map("likes_count")
+  
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  
+  // Relations
+  post    Post          @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user    User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  parent  Comment?      @relation("CommentReplies", fields: [parentId], references: [id], onDelete: Cascade)
+  replies Comment[]     @relation("CommentReplies")
+  likes   CommentLike[]
+
+  @@index([postId])
+  @@index([userId])
+  @@index([parentId])
+  @@index([createdAt(sort: Desc)])
+  @@map("comments")
+}
+
+// ============================================================================
+// POST LIKES
+// ============================================================================
+model PostLike {
+  id        String   @id @default(uuid())
+  postId    String   @map("post_id")
+  userId    String   @map("user_id")
+  
+  createdAt DateTime @default(now()) @map("created_at")
+  
+  // Relations
+  post Post @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([postId, userId])
+  @@index([postId])
+  @@index([userId])
+  @@map("post_likes")
+}
+
+// ============================================================================
+// COMMENT LIKES
+// ============================================================================
+model CommentLike {
+  id        String   @id @default(uuid())
+  commentId String   @map("comment_id")
+  userId    String   @map("user_id")
+  
+  createdAt DateTime @default(now()) @map("created_at")
+  
+  // Relations
+  comment Comment @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([commentId, userId])
+  @@index([commentId])
+  @@index([userId])
+  @@map("comment_likes")
+}
+
+// ============================================================================
+// POST VIEWS
+// ============================================================================
+model PostView {
+  id        String   @id @default(uuid())
+  postId    String   @map("post_id")
+  userId    String?  @map("user_id")
+  ipAddress String?  @map("ip_address")
+  userAgent String?  @map("user_agent")
+  
+  viewedAt  DateTime @default(now()) @map("viewed_at")
+  
+  // Relations
+  post Post  @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@unique([postId, userId, viewedAt])
+  @@index([postId])
+  @@index([userId])
+  @@index([viewedAt])
+  @@map("post_views")
+}

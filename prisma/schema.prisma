@@ -7,6 +7,72 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+// ============================================================================
+// ACADEMIC STRUCTURE MODELS
+// ============================================================================
+
+model Faculty {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  code        String   @unique
+  description String?
+  isActive    Boolean  @default(true) @map("is_active")
+  
+  departments Department[]
+  users       User[]     @relation("UserFaculty")
+  posts       Post[]
+  
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@index([isActive])
+  @@index([code])
+  @@map("faculties")
+}
+
+model Department {
+  id          String   @id @default(cuid())
+  facultyId   String   @map("faculty_id")
+  name        String
+  code        String
+  description String?
+  isActive    Boolean  @default(true) @map("is_active")
+  
+  faculty          Faculty    @relation(fields: [facultyId], references: [id], onDelete: Cascade)
+  levels           Level[]
+  users            User[]     @relation("UserDepartment")
+  managedByAdmins  User[]     @relation("ManagedDepartment")
+  
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@unique([facultyId, code])
+  @@index([facultyId])
+  @@index([isActive])
+  @@map("departments")
+}
+
+model Level {
+  id           String   @id @default(cuid())
+  departmentId String   @map("department_id")
+  levelNumber  Int      @map("level_number")
+  displayName  String   @map("display_name")
+  isActive     Boolean  @default(true) @map("is_active")
+  
+  department  Department @relation(fields: [departmentId], references: [id], onDelete: Cascade)
+  users       User[]     @relation("UserLevel")
+  posts       Post[]
+  
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@unique([departmentId, levelNumber])
+  @@index([departmentId])
+  @@index([levelNumber])
+  @@index([isActive])
+  @@map("levels")
+}
+
 model Channel {
   id            String          @id @default(cuid())
   createdAt     DateTime        @default(now())

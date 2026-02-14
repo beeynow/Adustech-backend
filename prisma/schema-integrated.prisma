@@ -1,0 +1,400 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================================================
+// ACADEMIC STRUCTURE MODELS (Faculty → Department → Level 100-500)
+// ============================================================================
+
+model Faculty {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  code        String   @unique
+  description String?
+  isActive    Boolean  @default(true) @map("is_active")
+  
+  departments Department[]
+  users       User[]     @relation("UserFaculty")
+  posts       Post[]
+  
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@index([isActive])
+  @@index([code])
+  @@map("faculties")
+}
+
+model Department {
+  id          String   @id @default(cuid())
+  facultyId   String   @map("faculty_id")
+  name        String
+  code        String
+  description String   @default("")
+  isActive    Boolean  @default(true) @map("is_active")
+  createdById String   @map("created_by_id")
+  
+  faculty          Faculty    @relation(fields: [facultyId], references: [id], onDelete: Cascade)
+  levels           Level[]
+  users            User[]     @relation("UserDepartment")
+  managedByAdmins  User[]     @relation("ManagedDepartment")
+  createdBy        User       @relation("DepartmentCreator", fields: [createdById], references: [id])
+  
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@unique([facultyId, code])
+  @@index([facultyId])
+  @@index([isActive])
+  @@index([code])
+  @@index([createdById])
+  @@map("departments")
+}
+
+model Level {
+  id           String   @id @default(cuid())
+  departmentId String   @map("department_id")
+  levelNumber  Int      @map("level_number")
+  displayName  String   @map("display_name")
+  isActive     Boolean  @default(true) @map("is_active")
+  
+  department  Department @relation(fields: [departmentId], references: [id], onDelete: Cascade)
+  users       User[]     @relation("UserLevel")
+  posts       Post[]
+  channels    Channel[]  @relation("LevelChannels")
+  
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@unique([departmentId, levelNumber])
+  @@index([departmentId])
+  @@index([levelNumber])
+  @@index([isActive])
+  @@map("levels")
+}
+
+// ============================================================================
+// CHANNEL SYSTEM (Bulletproof, auto-integrated with user profile)
+// ============================================================================
+
+model Channel {
+  id            String          @id @default(cuid())
+  name          String
+  description   String          @default("")
+  visibility    String          @default("public")
+  createdById   String          @map("created_by_id")
+  
+  // Auto-association with academic structure
+  facultyId     String?         @map("faculty_id")
+  departmentId  String?         @map("department_id")
+  levelId       String?         @map("level_id")
+  
+  // Channel scope: global, faculty, department, level
+  scope         String          @default("global")
+  
+  createdBy     User            @relation("ChannelCreator", fields: [createdById], references: [id], onDelete: Cascade)
+  level         Level?          @relation("LevelChannels", fields: [levelId], references: [id], onDelete: SetNull)
+  members       ChannelMember[]
+  messages      ChannelMessage[]
+  
+  createdAt     DateTime        @default(now()) @map("created_at")
+  updatedAt     DateTime        @updatedAt @map("updated_at")
+
+  @@index([createdById])
+  @@index([name])
+  @@index([scope])
+  @@index([facultyId])
+  @@index([departmentId])
+  @@index([levelId])
+  @@map("channels")
+}
+
+model ChannelMember {
+  id        String   @id @default(cuid())
+  channelId String   @map("channel_id")
+  userId    String   @map("user_id")
+  role      String   @default("member")
+  isActive  Boolean  @default(true) @map("is_active")
+  
+  channel   Channel  @relation(fields: [channelId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  joinedAt  DateTime @default(now()) @map("joined_at")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@unique([channelId, userId])
+  @@index([channelId])
+  @@index([userId])
+  @@map("channel_members")
+}
+
+model ChannelMessage {
+  id        String   @id @default(cuid())
+  channelId String   @map("channel_id")
+  userId    String   @map("user_id")
+  content   String
+  
+  channel   Channel  @relation(fields: [channelId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([channelId])
+  @@index([userId])
+  @@index([createdAt])
+  @@map("channel_messages")
+}
+
+// ============================================================================
+// POSTS SYSTEM (Integrated with academic structure)
+// ============================================================================
+
+model Post {
+  id           String       @id @default(cuid())
+  userId       String       @map("user_id")
+  userName     String       @map("user_name")
+  
+  // Content
+  title        String?
+  text         String       @default("")
+  category     String       @default("All")
+  imageBase64  String       @default("") @db.Text
+  imageUrl     String       @default("")
+  
+  // Old system (for backward compatibility)
+  department   String       @default("")
+  level        String       @default("")
+  departmentId String?      @map("old_department_id")
+  
+  // New academic system
+  facultyId    String?      @map("faculty_id")
+  levelId      String?      @map("level_id")
+  
+  // Metadata
+  priority     String       @default("normal")
+  isPinned     Boolean      @default(false) @map("is_pinned")
+  
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  faculty      Faculty?     @relation(fields: [facultyId], references: [id], onDelete: SetNull)
+  levelPost    Level?       @relation(fields: [levelId], references: [id], onDelete: SetNull)
+  
+  comments     Comment[]
+  likes        PostLike[]
+  reposts      PostRepost[]
+  
+  createdAt    DateTime     @default(now()) @map("created_at")
+  updatedAt    DateTime     @updatedAt @map("updated_at")
+
+  @@index([userId])
+  @@index([category])
+  @@index([createdAt])
+  @@index([facultyId])
+  @@index([levelId])
+  @@index([isPinned])
+  @@index([priority])
+  @@index([department])
+  @@map("posts")
+}
+
+model Comment {
+  id            String        @id @default(cuid())
+  postId        String        @map("post_id")
+  userId        String        @map("user_id")
+  userName      String        @map("user_name")
+  text          String
+  parentId      String?       @map("parent_id")
+  
+  post          Post          @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user          User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  parent        Comment?      @relation("CommentToComment", fields: [parentId], references: [id], onDelete: Cascade)
+  replies       Comment[]     @relation("CommentToComment")
+  likes         CommentLike[]
+  
+  createdAt     DateTime      @default(now()) @map("created_at")
+  updatedAt     DateTime      @updatedAt @map("updated_at")
+
+  @@index([postId])
+  @@index([userId])
+  @@index([parentId])
+  @@map("comments")
+}
+
+model PostLike {
+  id        String   @id @default(cuid())
+  postId    String   @map("post_id")
+  userId    String   @map("user_id")
+  
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@unique([postId, userId])
+  @@index([postId])
+  @@index([userId])
+  @@map("post_likes")
+}
+
+model PostRepost {
+  id        String   @id @default(cuid())
+  postId    String   @map("post_id")
+  userId    String   @map("user_id")
+  
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@unique([postId, userId])
+  @@index([postId])
+  @@index([userId])
+  @@map("post_reposts")
+}
+
+model CommentLike {
+  id        String   @id @default(cuid())
+  commentId String   @map("comment_id")
+  userId    String   @map("user_id")
+  
+  comment   Comment  @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@unique([commentId, userId])
+  @@index([commentId])
+  @@index([userId])
+  @@map("comment_likes")
+}
+
+// ============================================================================
+// EVENTS & TIMETABLES
+// ============================================================================
+
+model Event {
+  id            String   @id @default(cuid())
+  title         String
+  details       String   @default("")
+  location      String   @default("")
+  startsAt      DateTime @map("starts_at")
+  expiresAt     DateTime @map("expires_at")
+  imageUrl      String   @default("") @map("image_url")
+  imageBase64   String   @default("") @map("image_base64")
+  pdfUrl        String   @default("") @map("pdf_url")
+  createdByName String   @default("") @map("created_by_name")
+  createdById   String   @map("created_by_id")
+  
+  createdBy     User     @relation(fields: [createdById], references: [id], onDelete: Cascade)
+  
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  @@index([createdById])
+  @@index([expiresAt])
+  @@index([startsAt])
+  @@map("events")
+}
+
+model Timetable {
+  id            String   @id @default(cuid())
+  title         String
+  details       String   @default("")
+  effectiveDate DateTime @map("effective_date")
+  expiresAt     DateTime @map("expires_at")
+  imageUrl      String   @default("") @map("image_url")
+  pdfUrl        String   @default("") @map("pdf_url")
+  createdByName String   @default("") @map("created_by_name")
+  createdById   String   @map("created_by_id")
+  
+  createdBy     User     @relation(fields: [createdById], references: [id], onDelete: Cascade)
+  
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  @@index([createdById])
+  @@index([effectiveDate])
+  @@index([expiresAt])
+  @@map("timetables")
+}
+
+// ============================================================================
+// USER MODEL (Integrated with academic structure)
+// ============================================================================
+
+model User {
+  id                   String          @id @default(cuid())
+  name                 String
+  email                String          @unique
+  matricNo             String?         @unique @map("matric_no")
+  password             String
+  role                 String          @default("user")
+  
+  // Academic associations (auto-populated from profile)
+  facultyId            String?         @map("faculty_id")
+  departmentId         String?         @map("department_id")
+  levelId              String?         @map("level_id")
+  
+  // For d_admin: managed department
+  managedDepartmentId  String?         @map("managed_department_id")
+  
+  // Old system (for backward compatibility)
+  department           String          @default("")
+  level                String          @default("")
+  faculty              String          @default("")
+  
+  // Profile
+  bio                  String          @default("")
+  profileImage         String          @default("") @map("profile_image")
+  phone                String          @default("")
+  dateOfBirth          DateTime?       @map("date_of_birth")
+  gender               String          @default("")
+  address              String          @default("")
+  country              String          @default("")
+  
+  // Security
+  otp                  String?
+  otpExpiry            DateTime?       @map("otp_expiry")
+  isVerified           Boolean         @default(false) @map("is_verified")
+  resetPasswordToken   String?         @map("reset_password_token")
+  resetPasswordExpires DateTime?       @map("reset_password_expires")
+  
+  // Relations
+  facultyRel           Faculty?        @relation("UserFaculty", fields: [facultyId], references: [id], onDelete: SetNull)
+  departmentRel        Department?     @relation("UserDepartment", fields: [departmentId], references: [id], onDelete: SetNull)
+  levelRel             Level?          @relation("UserLevel", fields: [levelId], references: [id], onDelete: SetNull)
+  managedDepartment    Department?     @relation("ManagedDepartment", fields: [managedDepartmentId], references: [id], onDelete: SetNull)
+  
+  posts                Post[]
+  comments             Comment[]
+  postLikes            PostLike[]
+  postReposts          PostRepost[]
+  commentLikes         CommentLike[]
+  
+  channelsCreated      Channel[]       @relation("ChannelCreator")
+  channelMemberships   ChannelMember[]
+  channelMessages      ChannelMessage[]
+  
+  departmentsCreated   Department[]    @relation("DepartmentCreator")
+  events               Event[]
+  timetables           Timetable[]
+  
+  createdAt            DateTime        @default(now()) @map("created_at")
+  updatedAt            DateTime        @updatedAt @map("updated_at")
+
+  @@index([email])
+  @@index([matricNo])
+  @@index([role])
+  @@index([facultyId])
+  @@index([departmentId])
+  @@index([levelId])
+  @@index([managedDepartmentId])
+  @@index([department])
+  @@index([level])
+  @@map("users")
+}

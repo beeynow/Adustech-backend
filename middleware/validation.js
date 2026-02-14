@@ -151,7 +151,19 @@ const addCommentValidation = [
   body('text')
     .trim()
     .notEmpty().withMessage('Comment text is required')
-    .isLength({ max: 500 }).withMessage('Comment must not exceed 500 characters'),
+    .isLength({ min: 1, max: 500 }).withMessage('Comment must be between 1 and 500 characters'),
+  body('parentId')
+    .optional()
+    .trim()
+    .custom((value) => {
+      if (!value) return true;
+      const isMongoId = /^[0-9a-fA-F]{24}$/.test(value);
+      const isCuid = /^c[^\s-]{24,}$/.test(value);
+      if (!isMongoId && !isCuid) {
+        throw new Error('Invalid parent comment ID format');
+      }
+      return true;
+    }),
   validate
 ];
 
@@ -244,10 +256,36 @@ const updateProfileValidation = [
   validate
 ];
 
-// ID parameter validation
+// ID parameter validation (for both MongoDB and CUID)
 const mongoIdValidation = [
   param('id')
-    .isMongoId().withMessage('Invalid ID format'),
+    .trim()
+    .notEmpty().withMessage('ID is required')
+    .custom((value) => {
+      // Accept both MongoDB ObjectId and CUID formats
+      const isMongoId = /^[0-9a-fA-F]{24}$/.test(value);
+      const isCuid = /^c[^\s-]{24,}$/.test(value);
+      if (!isMongoId && !isCuid) {
+        throw new Error('Invalid ID format');
+      }
+      return true;
+    }),
+  validate
+];
+
+// Comment ID validation
+const commentIdValidation = [
+  param('commentId')
+    .trim()
+    .notEmpty().withMessage('Comment ID is required')
+    .custom((value) => {
+      const isMongoId = /^[0-9a-fA-F]{24}$/.test(value);
+      const isCuid = /^c[^\s-]{24,}$/.test(value);
+      if (!isMongoId && !isCuid) {
+        throw new Error('Invalid comment ID format');
+      }
+      return true;
+    }),
   validate
 ];
 
@@ -267,4 +305,5 @@ module.exports = {
   createTimetableValidation,
   updateProfileValidation,
   mongoIdValidation,
+  commentIdValidation,
 };
