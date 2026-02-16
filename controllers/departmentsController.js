@@ -9,7 +9,11 @@ const prisma = new PrismaClient();
 exports.createDepartment = async (req, res) => {
     try {
         const { name, code, description, faculty, levels } = req.body;
-        const userId = req.session.userId;
+        const userId = req.session.user?.id;
+
+        if (!userId) {
+            return res.status(401).json({ message: 'Unauthorized. Please log in.' });
+        }
 
         // Validate user is power admin
         const user = await prisma.user.findUnique({ where: { id: userId } });
@@ -155,7 +159,11 @@ exports.updateDepartment = async (req, res) => {
     try {
         const { id } = req.params;
         const { name, code, description, faculty, levels, isActive } = req.body;
-        const userId = req.session.userId;
+        const userId = req.session.user?.id;
+
+        if (!userId) {
+            return res.status(401).json({ message: 'Unauthorized. Please log in.' });
+        }
 
         // Validate user is power admin
         const user = await prisma.user.findUnique({ where: { id: userId } });
@@ -221,7 +229,11 @@ exports.updateDepartment = async (req, res) => {
 exports.deleteDepartment = async (req, res) => {
     try {
         const { id } = req.params;
-        const userId = req.session.userId;
+        const userId = req.session.user?.id;
+
+        if (!userId) {
+            return res.status(401).json({ message: 'Unauthorized. Please log in.' });
+        }
 
         // Validate user is power admin
         const user = await prisma.user.findUnique({ where: { id: userId } });
@@ -284,7 +296,11 @@ exports.getDepartmentUsers = async (req, res) => {
     try {
         const { id } = req.params;
         const { level } = req.query;
-        const userId = req.session.userId;
+        const userId = req.session.user?.id;
+
+        if (!userId) {
+            return res.status(401).json({ message: 'Unauthorized. Please log in.' });
+        }
 
         // Check if user is admin or power admin
         const user = await prisma.user.findUnique({ where: { id: userId } });

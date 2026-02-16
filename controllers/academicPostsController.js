@@ -62,12 +62,12 @@ exports.createPost = async (req, res) => {
 
         // Build post data
         const postData = {
-            authorId: userId,
-            title: title.trim(),
-            content: content.trim(),
+            userId: userId,
+            userName: req.session.user?.name || 'Unknown',
+            title: title ? title.trim() : '',
+            text: content.trim(),
             category: category || 'General',
-            priority: priority || 'normal',
-            isPublished: true
+            priority: priority || 'normal'
         };
 
         // Set scope
@@ -106,10 +106,10 @@ exports.createPost = async (req, res) => {
         const post = await prisma.post.create({
             data: postData,
             include: {
-                author: {
+                user: {
                     select: {
                         id: true,
-                        fullName: true,
+                        name: true,
                         role: true
                     }
                 },
@@ -120,7 +120,7 @@ exports.createPost = async (req, res) => {
                         code: true
                     }
                 },
-                level: {
+                levelPost: {
                     select: {
                         id: true,
                         levelNumber: true,
@@ -152,14 +152,14 @@ exports.createPost = async (req, res) => {
             post: {
                 id: post.id,
                 title: post.title,
-                content: post.content,
+                text: post.text,
                 category: post.category,
                 priority: post.priority,
                 imageUrl: post.imageUrl,
                 scope: isLevel ? 'level' : isFaculty ? 'faculty' : 'global',
-                author: post.author,
+                author: post.user,
                 faculty: post.faculty,
-                level: post.level,
+                level: post.levelPost,
                 createdAt: post.createdAt
             }
         });
@@ -192,8 +192,7 @@ exports.getGlobalPosts = async (req, res) => {
         // Build where clause
         const where = {
             facultyId: null,
-            levelId: null,
-            isPublished: true
+            levelId: null
         };
 
         if (category && category !== 'All') {
@@ -215,20 +214,20 @@ exports.getGlobalPosts = async (req, res) => {
                     { createdAt: 'desc' }
                 ],
                 include: {
-                    author: {
+                    user: {
                         select: {
                             id: true,
-                            fullName: true,
+                            name: true,
                             role: true
                         }
                     },
                     _count: {
                         select: {
                             comments: true,
-                            likes: true
+                            postLikes: true
                         }
                     },
-                    likes: userId ? {
+                    postLikes: userId ? {
                         where: { userId },
                         select: { id: true }
                     } : false
@@ -241,17 +240,16 @@ exports.getGlobalPosts = async (req, res) => {
         const formattedPosts = posts.map(post => ({
             id: post.id,
             title: post.title,
-            content: post.content,
+            text: post.text,
             category: post.category,
             priority: post.priority,
             imageUrl: post.imageUrl,
             isPinned: post.isPinned,
             scope: 'global',
-            author: post.author,
-            likesCount: post._count.likes,
+            author: post.user,
+            likesCount: post._count.postLikes,
             commentsCount: post._count.comments,
-            viewsCount: post.viewsCount,
-            isLiked: userId ? post.likes.length > 0 : false,
+            isLiked: userId ? post.postLikes && post.postLikes.length > 0 : false,
             createdAt: post.createdAt,
             updatedAt: post.updatedAt
         }));
@@ -298,8 +296,7 @@ exports.getFacultyPosts = async (req, res) => {
         // Build where clause
         const where = {
             facultyId,
-            levelId: null,
-            isPublished: true
+            levelId: null
         };
 
         if (category && category !== 'All') {
@@ -321,10 +318,10 @@ exports.getFacultyPosts = async (req, res) => {
                     { createdAt: 'desc' }
                 ],
                 include: {
-                    author: {
+                    user: {
                         select: {
                             id: true,
-                            fullName: true,
+                            name: true,
                             role: true
                         }
                     },
@@ -338,10 +335,10 @@ exports.getFacultyPosts = async (req, res) => {
                     _count: {
                         select: {
                             comments: true,
-                            likes: true
+                            postLikes: true
                         }
                     },
-                    likes: userId ? {
+                    postLikes: userId ? {
                         where: { userId },
                         select: { id: true }
                     } : false
@@ -365,18 +362,17 @@ exports.getFacultyPosts = async (req, res) => {
         const formattedPosts = posts.map(post => ({
             id: post.id,
             title: post.title,
-            content: post.content,
+            text: post.text,
             category: post.category,
             priority: post.priority,
             imageUrl: post.imageUrl,
             isPinned: post.isPinned,
             scope: 'faculty',
-            author: post.author,
+            author: post.user,
             faculty: post.faculty,
-            likesCount: post._count.likes,
+            likesCount: post._count.postLikes,
             commentsCount: post._count.comments,
-            viewsCount: post.viewsCount,
-            isLiked: userId ? post.likes.length > 0 : false,
+            isLiked: userId ? post.postLikes && post.postLikes.length > 0 : false,
             createdAt: post.createdAt,
             updatedAt: post.updatedAt
         }));
@@ -423,8 +419,7 @@ exports.getLevelPosts = async (req, res) => {
 
         // Build where clause
         const where = {
-            levelId,
-            isPublished: true
+            levelId
         };
 
         if (category && category !== 'All') {
@@ -446,14 +441,14 @@ exports.getLevelPosts = async (req, res) => {
                     { createdAt: 'desc' }
                 ],
                 include: {
-                    author: {
+                    user: {
                         select: {
                             id: true,
-                            fullName: true,
+                            name: true,
                             role: true
                         }
                     },
-                    level: {
+                    levelPost: {
                         select: {
                             id: true,
                             levelNumber: true,
@@ -477,10 +472,10 @@ exports.getLevelPosts = async (req, res) => {
                     _count: {
                         select: {
                             comments: true,
-                            likes: true
+                            postLikes: true
                         }
                     },
-                    likes: userId ? {
+                    postLikes: userId ? {
                         where: { userId },
                         select: { id: true }
                     } : false
@@ -519,18 +514,17 @@ exports.getLevelPosts = async (req, res) => {
         const formattedPosts = posts.map(post => ({
             id: post.id,
             title: post.title,
-            content: post.content,
+            text: post.text,
             category: post.category,
             priority: post.priority,
             imageUrl: post.imageUrl,
             isPinned: post.isPinned,
             scope: 'level',
-            author: post.author,
-            level: post.level,
-            likesCount: post._count.likes,
+            author: post.user,
+            level: post.levelPost,
+            likesCount: post._count.postLikes,
             commentsCount: post._count.comments,
-            viewsCount: post.viewsCount,
-            isLiked: userId ? post.likes.length > 0 : false,
+            isLiked: userId ? post.postLikes && post.postLikes.length > 0 : false,
             createdAt: post.createdAt,
             updatedAt: post.updatedAt
         }));
@@ -578,10 +572,10 @@ exports.getPost = async (req, res) => {
         const post = await prisma.post.findUnique({
             where: { id: postId },
             include: {
-                author: {
+                user: {
                     select: {
                         id: true,
-                        fullName: true,
+                        name: true,
                         role: true
                     }
                 },
@@ -592,7 +586,7 @@ exports.getPost = async (req, res) => {
                         code: true
                     }
                 },
-                level: {
+                levelPost: {
                     select: {
                         id: true,
                         levelNumber: true,
@@ -617,36 +611,37 @@ exports.getPost = async (req, res) => {
                     where: { parentId: null },
                     orderBy: { createdAt: 'desc' },
                     include: {
-                        user: {
+                        User: {
                             select: {
                                 id: true,
-                                fullName: true,
+                                name: true,
                                 role: true
                             }
                         },
-                        replies: {
+                        other_Comment: {
                             include: {
-                                user: {
+                                User: {
                                     select: {
                                         id: true,
-                                        fullName: true,
+                                        name: true,
                                         role: true
                                     }
                                 }
                             }
                         },
-                        _count: {
-                            select: { likes: true }
+                        CommentLike: {
+                            select: { userId: true }
                         }
-                    }
+                    },
+                    take: 100
                 },
                 _count: {
                     select: {
                         comments: true,
-                        likes: true
+                        postLikes: true
                     }
                 },
-                likes: userId ? {
+                postLikes: userId ? {
                     where: { userId },
                     select: { id: true }
                 } : false
@@ -660,50 +655,30 @@ exports.getPost = async (req, res) => {
             });
         }
 
-        // Increment view count
-        await prisma.post.update({
-            where: { id: postId },
-            data: { viewsCount: { increment: 1 } }
-        });
-
-        // Track view
-        if (userId) {
-            await prisma.postView.upsert({
-                where: {
-                    postId_userId_viewedAt: {
-                        postId,
-                        userId,
-                        viewedAt: new Date()
-                    }
-                },
-                create: {
-                    postId,
-                    userId
-                },
-                update: {}
-            });
-        }
-
         // Determine scope
         const scope = post.levelId ? 'level' : post.facultyId ? 'faculty' : 'global';
 
         const response = {
             id: post.id,
             title: post.title,
-            content: post.content,
+            text: post.text,
             category: post.category,
             priority: post.priority,
             imageUrl: post.imageUrl,
             isPinned: post.isPinned,
             scope,
-            author: post.author,
+            author: post.user,
             faculty: post.faculty,
-            level: post.level,
-            likesCount: post._count.likes,
+            level: post.levelPost,
+            likesCount: post._count.postLikes,
             commentsCount: post._count.comments,
-            viewsCount: post.viewsCount + 1,
-            isLiked: userId ? post.likes.length > 0 : false,
-            comments: post.comments,
+            isLiked: userId ? post.postLikes && post.postLikes.length > 0 : false,
+            comments: post.comments.map(comment => ({
+                ...comment,
+                user: comment.User,
+                replies: comment.other_Comment,
+                likesCount: comment.CommentLike.length
+            })),
             createdAt: post.createdAt,
             updatedAt: post.updatedAt
         };
@@ -740,7 +715,7 @@ exports.updatePost = async (req, res) => {
         const updateData = {};
 
         if (title) updateData.title = title.trim();
-        if (content) updateData.content = content.trim();
+        if (content) updateData.text = content.trim();
         if (category) updateData.category = category;
         if (priority) updateData.priority = priority;
         if (typeof isPinned === 'boolean') updateData.isPinned = isPinned;
@@ -749,15 +724,15 @@ exports.updatePost = async (req, res) => {
             where: { id: postId },
             data: updateData,
             include: {
-                author: {
+                user: {
                     select: {
                         id: true,
-                        fullName: true,
+                        name: true,
                         role: true
                     }
                 },
                 faculty: true,
-                level: {
+                levelPost: {
                     include: {
                         department: true
                     }
@@ -900,18 +875,26 @@ exports.addComment = async (req, res) => {
             });
         }
 
+        // Get user info
+        const user = await prisma.user.findUnique({
+            where: { id: userId },
+            select: { name: true }
+        });
+
         const comment = await prisma.comment.create({
             data: {
                 postId,
                 userId,
-                content: content.trim(),
-                parentId: parentId || null
+                userName: user?.name || 'Unknown',
+                text: content.trim(),
+                parentId: parentId || null,
+                updatedAt: new Date()
             },
             include: {
-                user: {
+                User: {
                     select: {
                         id: true,
-                        fullName: true,
+                        name: true,
                         role: true
                     }
                 }
@@ -923,7 +906,10 @@ exports.addComment = async (req, res) => {
         return res.status(201).json({
             success: true,
             message: 'Comment added successfully.',
-            comment
+            comment: {
+                ...comment,
+                user: comment.User
+            }
         });
 
     } catch (error) {
