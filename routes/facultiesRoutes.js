@@ -19,7 +19,7 @@ const {
     getUserAcademicContext
 } = require('../controllers/facultiesController');
 
-const { isAuthenticated } = require('../middleware/authmiddleware');
+const isAuthenticated = require('../middleware/authmiddleware');
 
 // GET /api/faculties - Get all faculties
 router.get('/', isAuthenticated, getAllFaculties);

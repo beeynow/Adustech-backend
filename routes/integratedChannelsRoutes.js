@@ -21,7 +21,7 @@ const {
     getRecommendedChannels
 } = require('../controllers/integratedChannelsController');
 
-const { isAuthenticated } = require('../middleware/authmiddleware');
+const isAuthenticated = require('../middleware/authmiddleware');
 
 /**
  * GET /api/channels/auto-join
